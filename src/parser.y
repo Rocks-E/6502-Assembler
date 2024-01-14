@@ -6,31 +6,18 @@
 #include <cstdint>
 #include <vector>
 #include <map>
-#include "parser.hpp"
 #include "opcodes.hpp"
+#include "parser_structs.hpp"
+
+#include "parser.hpp"
 
 #define ROM_SIZE 0x10000
 
-struct symbol_info {
-	symbol_info() {
-		this->address = 0;
-		this->value_set = false;
-	};
-	void set_address(uint16_t addr) {
-		this->address = addr;
-		this->value_set = true;
-	};
-	uint16_t address;
-	std::vector<uint16_t> loc;
-	bool value_set;
-};
-
 //Store label
-static std::map<std::string, symbol_info> constants;
+extern std::map<std::string, uint16_t> constants;
 static char _error = 0;
-static uint16_t current_byte;
 
-uint8_t rom_dump[ROM_SIZE];
+uint8_t rom_dump[ROM_SIZE] = {0};
 
 void yyerror(YYLTYPE *loc, char const *err);
 
@@ -42,24 +29,28 @@ extern int yylex();
 %define api.push-pull push
 
 %union {
-	std::vector<uint8_t> *byte_vec;
+	std::vector<expression_data> *exp_vec;
+	std::vector<statement_data> *stmnt_vec;
+	statement_data *stmnt;
 	std::string *str;
+	address_data *addr;
+	expression_data *exp_data;
 	uint16_t u16;
-	uint8_t u8;
 }
 
-%token IDENTIFIER FLOAT INTEGER TRUE FALSE
-%token ASSIGN
-%token LPAREN RPAREN COMMA COLON NEWLINE
+%token HASH TIMES DIVIDE PLUS MINUS
+%token ACCUMULATOR COMMA_X COMMA_Y
+%token LPAREN RPAREN COMMA COLON NEWLINE LBRACKET RBRACKET
+%token BYTE WORD ORG
 
-%token u8 LPAREN RPAREN COMMA COLON NEWLINE EQUALS
-%token u8 LITERAL
-%token str IDENTIFIER
-%token u16 ADDRESS
+%token <str> IDENTIFIER INSTRUCTION LABEL
+%token <u16> ADDRESS
 
-%type byte_vec byteList wordList addressList directiveStatement opStatement statement statementList
-%type byte_vec directiveStatement 
-%type u16 addressValue
+%type <stmnt_vec> statement_list
+%type <stmnt> statement op_statement directive_statement data_statement
+%type <exp_vec> byte_list word_list 
+%type <addr> address_value
+%type <exp_data> expression m_expression p_expression 
 
 %start program
 
@@ -71,563 +62,431 @@ extern int yylex();
 
 program
 	/* Rolled up program */
-	/* Fill every constant location with its determined value */
-	: statementList {
+	/* Convert each statement sequentially into its binary equivalent */
+	/* Any time a label is encountered, replace it with the current byte */
+	: statement_list {
+	
+		//std::cout << "Starting roll-up\n";
+		
+		std::vector<statement_data> program_list = *$1;
+	
+		uint16_t current_byte = 0;
+		
+		// Set each label
+		// Determine the byte location for each statement
+		for(statement_data &current_line : program_list) {
+			
+			current_line.location = current_byte;
+			
+			switch(current_line.stmnt_mode) {
+				
+				// Insert the label into the constants table at the current byte
+				case STATEMENT_MODE::ST_LABEL:
+					if(constants.contains(current_line.op_name))
+						throw new std::logic_error("Cannot name a label twice.");
+					constants.insert(std::pair<std::string, uint16_t>(current_line.op_name, current_byte));
+					break;
+					
+				// Evaluate the org expression and move to that byte
+				case STATEMENT_MODE::ST_ORG:
+					current_line.replace_labels();
+					current_byte = current_line.operand_expressions[0].evaluate();
+					break;
+					
+				// Move the current_byte cursor by however many bytes this instruction/dataset takes
+				/*
+				case STATEMENT_MODE::ST_DATA_WORD:
+				case STATEMENT_MODE::ST_DATA_BYTE:
+				case STATEMENT_MODE::ST_OPERATION:
+				*/
+				default:
+					current_byte += current_line.byte_count();
+					
+			}
+			
+		}
+		
+		//std::cout << "Labels and locations have been set.\n";
+		
+		// All labels and locations have been determined, evaluate all statements and write to the ROM
+		for(statement_data &current_line : program_list) {
+			
+			// Skip org/label statements
+			if(current_line.stmnt_mode == STATEMENT_MODE::ST_ORG || current_line.stmnt_mode == STATEMENT_MODE::ST_LABEL)
+				continue;
+			
+			// Replace labels and evaluate
+			current_line.replace_labels();
+			std::vector<uint8_t> line_bytes = current_line.to_binary(current_line.location);
+			
+			// Write to ROM
+			for(size_t c = 0; c < line_bytes.size(); c++)
+				rom_dump[current_line.location + c] = line_bytes[c];
+			
+		}
 		
 	}
 	;
 	
-statementList
-	: statementList NEWLINE statement {
-		$$ = new std::vector<uint8_t>(*$1);
-		$$->insert($$->end(), $3->begin(), $3->end());
+statement_list
+	// Take the current statement_list, add new statements to the end of it
+	: statement NEWLINE statement_list {
+		
+		/*
+		$$ = new std::vector<statement_data>(*$1);
+		delete $1;
+		
+		$$->push_back(*$3);
+		delete $3;
+		*/
+		
+		////std::cout << *$1 << '\n';
+		
+		$$ = new std::vector<statement_data>(*$3);
+		delete $3;
+		
+		$$->insert($$->begin(), *$1);
+		delete $1;
+		
 	}
-	| statement
+	// Base statement case, just add to a statement vector
+	| statement {
+		
+		////std::cout << "Base: " << *$1 << '\n';
+		
+		$$ = new std::vector<statement_data>();
+		
+		$$->push_back(*$1);
+		delete $1;
+		
+	}
 	;
 	
 statement
 	/* Operation (instruction) statement */
-	: opStatement {
-		$$ = $1;
-	}
+	// Fine as is
+	: op_statement
 	/* .byte, .word, or .org statement */
-	| directiveStatement {
-	
-	}
-	/* Set a constant, should only be done once per constant since this needs to apply to all instances of it */
-	| IDENTIFIER EQUALS ADDRESS {
-		if(constants.contains($1)) {
-			if(constants[$1].value_set) {
-				std::cerr << "Error: cannot set a constant value twice (" << $1 << ").\n";
-				//throw error
-			}
-		}
-		else {
-			constants.insert({$1,{}});
-		}
-		constants[$1].set_address($3);
-		
-		// Empty vector
-		$$ = new std::vector<uint8_t>;
-		
-	}
+	// Empty if .org statement, n/2n bytes for .byte and .word statements
+	| directive_statement
 	/* Set a label, should only be done once per label since a label can only point to one address */
-	| IDENTIFIER COLON {
-		if(constants.contains($1)) {
-			if(constants[$1].value_set) {
-				std::cerr << "Error: cannot name a label twice (" << $1 << ").\n";
-				//throw error
-			}
-		}
-		else {
-			constants.insert({$1, {}});
-		}
-		constants[$1].set_address(current_byte);
+	| LABEL {
 		
-		// Empty vector
-		$$ = new std::vector<uint8_t>;
+		$$ = new statement_data(*$1);
+		delete $1;
+		
+		$$->stmnt_mode = STATEMENT_MODE::ST_LABEL;
 		
 	}
 	;
 
-opStatement
+op_statement
 	/* OPC (ADDR, X) -> X-indexed, indirect -> mem[zpg[addr + x]] */
 	/* 2 byte operation */
-	: INSTRUCTION LPAREN addressValue COMMA_X RPAREN {
+	: INSTRUCTION LPAREN expression COMMA_X RPAREN {
 		
-		$$ = new std::vector<uint8_t>(2);
+		//std::cout << "Ind x\n";
 		
-		int16_t opcode = find_opcode($1, ADDR_MODE::INDIRECT_X);
-		if(opcode < 0) {
-			// Throw error
-		}
-		
-		(*$$)[0] = opcode;
-		(*$$)[1] = $3 & 0xFF;
+		$$ = new statement_data(*$1, *$3, ADDR_MODE::INDIRECT_X);
+		delete $1; delete $3;
 		
 	}
 	/* OPC (ADDR), Y -> Indirect, Y-indexed -> mem[zpg[addr] + y + c] */
 	/* 2 byte operation */
-	| INSTRUCTION LPAREN addressValue RPAREN COMMA_Y {
+	| INSTRUCTION LPAREN expression RPAREN COMMA_Y {
 		
-		$$ = new std::vector<uint8_t>(2);
+		//std::cout << "Ind y\n";
 		
-		int16_t opcode = find_opcode($1, ADDR_MODE::INDIRECT_Y);
-		if(opcode < 0) {
-			
-		}
-		
-		(*$$)[0] = opcode;
-		(*$$)[1] = $3 & 0xFF;
+		$$ = new statement_data(*$1, *$3, ADDR_MODE::INDIRECT_Y);
+		delete $1; delete $3;
 		
 	}
 	/* OPC (ADDR) -> Indirect -> mem[mem[addr]] */
 	/* 3 byte operation - ONLY APPLICABLE TO JMP */
-	| INSTRUCTION LPAREN addressValue RPAREN {
+	| INSTRUCTION LPAREN expression RPAREN {
 		
-		$$ = new std::vector<uint8_t>(3);
+		//std::cout << "Ind\n";
 		
-		int16_t opcode = find_opcode($1, ADDR_MODE::INDIRECT);
-		if(opcode < 0) {
-			//Throw error
-		}
-		
-		(*$$)[0] = opcode;
-		(*$$)[1] = $3 & 0xFF;
-		(*$$)[2] = $3 >> 8;
+		$$ = new statement_data(*$1, *$3, ADDR_MODE::INDIRECT);
+		delete $1; delete $3;
 
 	}
 	/* OPC ADDR, X -> Absolute, X-indexed OR zeropage, X-indexed -> mem[addr + x] OR zpg[addr + x] (effectively mem[addr + x] where addr < 0x100) */
 	/* 2 bytes if zeropage, 3 bytes if absolute */
-	| INSTRUCTION addressValue COMMA_X {
+	| INSTRUCTION expression COMMA_X {
 		
-		$$ = new std::vector<uint8_t>(2);
+		//std::cout << "Abs/zpg x\n";
 		
-		int16_t opcode;
-		bool absolute_addr = false;
+		$$ = new statement_data(*$1);
+		delete $1;
 		
-		// Check for absolute X-indexed if this is over 1 byte, otherwise use zeropage
-		if($2 > 0xFF) {
-			opcode = find_opcode($1, ADDR_MODE::ABSOLUTE_X);
-			absolute_addr = true;
-		}
-		else
-			opcode = find_opcode($1, ADDR_MODE::ZEROPAGE_X);
-
-		// If no valid operation was found, throw an error (undecided)
-		if(opcode < 0) {
-			//Throw error
-		}
-		else {
-			
-			(*$$)[0] = opcode;
-			(*$$)[1] = $3 & 0xFF;
-			
-			if(absolute_addr)
-				$$->push_back($3 >> 8);
-			
-		}
+		//std::cout << "Statement created\n";
+		
+		ADDR_MODE op_mode = $2->contains_label() || $2->evaluate() > 0xFF ? ADDR_MODE::ABSOLUTE_X : ADDR_MODE::ZEROPAGE_X;
+		$$->op_mode = op_mode;
+		
+		//std::cout << "Address mode set\n";
+		
+		$$->operand_expressions.push_back(*$2);
+		delete $2;
+		
+		//std::cout << "Operand pushed\n";
+		
+		//std::cout << *$$ << '\n';
+		
 	}
 	/* OPC ADDR, Y -> Absolute, Y-indexed OR zeropage, Y-indexed -> mem[addr + y] OR zpg[addr + y] (effectively mem[addr + y] where addr < 0x100) */
 	/* 2 bytes if zeropage, 3 bytes if absolute */
-	| INSTRUCTION addressValue COMMA_Y {
-		//Indirect
-		int16_t temp;
-		$$ = new std::vector<uint8_t>;
-		temp = find_opcode($1, ADDR_MODE::INDIRECT_Y);
-		if(temp < 0) {
-			//Throw error
-		}
-		else {
-			$$->push_back(temp);
-			$$->push_back($2 & 0xFF);
-			$$->push_back($2 >> 8);
-		}
+	| INSTRUCTION expression COMMA_Y {
+		
+		//std::cout << "Abs/zpg y\n";
+		
+		$$ = new statement_data(*$1);
+		delete $1;
+		
+		ADDR_MODE op_mode = $2->contains_label() || $2->evaluate() > 0xFF ? ADDR_MODE::ABSOLUTE_Y : ADDR_MODE::ZEROPAGE_Y;
+		
+		$$->op_mode = op_mode;
+		
+		$$->operand_expressions.push_back(*$2);
+		delete $2;
+		
 	}
-	| INSTRUCTION addressValue {
-		//Indirect
-		int16_t temp;
-		$$ = new std::vector<uint8_t>;
-		//Branch instructions (relative)
-		if($1[0] == 'B' || $1[0] == 'b') {
-			
-		}
-		if($2 < 0x100) {
-			temp = find_opcode($1, ADDR_MODE::ZEROPAGE);
-			if(temp < 0) {
-				temp = find_opcode($1, ADDR_MODE::ABSOLUTE);
-			}
-		}
-		temp = find_opcode($1, ADDR_MODE::INDIRECT);
-		if(temp < 0) {
-			//Throw error
-		}
-		else {
-			$$->push_back(temp);
-			$$->push_back($2 & 0xFF);
-			$$->push_back($2 >> 8);
-		}
+	/* OPC ADDR -> Zeropage, absolute, or relative */
+	| INSTRUCTION expression {
+		
+		//std::cout << "Abs/zpg/rel\n";
+		
+		$$ = new statement_data(*$1);
+		delete $1;
+		
+		//std::cout << "Statement created\n";
+		
+		ADDR_MODE op_mode;
+		if($$->op_name[0] == 'B')
+			op_mode = ADDR_MODE::RELATIVE;
+		else
+			op_mode = $2->contains_label() || $2->evaluate() > 0xFF ? ADDR_MODE::ABSOLUTE : ADDR_MODE::ZEROPAGE;
+		
+		$$->op_mode = op_mode;
+		
+		//std::cout << "Address mode set\n";
+		
+		$$->operand_expressions.push_back(*$2);
+		delete $2;
+		
+		//std::cout << "Operand pushed\n";
+		
+		//std::cout << *$$ << '\n';
+		
 	}
 	| INSTRUCTION ACCUMULATOR {
-		//Accumulator (implied)
-		int16_t temp;
-		$$ = new std::vector<uint8_t>;
-		temp = find_opcode($1, ADDR_MODE::IMPLIED);
-		if(temp < 0) {
-			//Throw error
-		}
-		else {
-			$$->push_back(temp);
-		}
+		
+		//std::cout << "Acc\n";
+		
+		$$ = new statement_data(*$1, ADDR_MODE::IMPLIED);
+		delete $1;
+		
 	}
-	| INSTRUCTION LITERAL {
-		//Immediate
-		int16_t temp;
-		$$ = new std::vector<uint8_t>;
-		temp = find_opcode($1, ADDR_MODE::IMMEDIATE);
-		if(temp < 0) {
-			//Throw error
-		}
-		else {
-			$$->push_back(temp);
-			$$->push_back($2);
-		}
+	/* OPC # -> Immediate, opcode followed by a literal number */
+	| INSTRUCTION HASH expression {
+		
+		//std::cout << "Imm\n";
+		
+		$$ = new statement_data(*$1, *$3, ADDR_MODE::IMMEDIATE);
+		delete $1; delete $3;		
+		
 	}
+	/* OPC -> Implied, no further parameters are needed */
+	/* 1 byte */
 	| INSTRUCTION {
-		//Implied
-		int16_t temp;
-		$$ = new std::vector<uint8_t>;
-		temp = find_opcode($1, ADDR_MODE::IMPLIED);
-		if(temp < 0) {
-			//Throw error
-		}
-		else {
-			$$->push_back(temp);
-		}
-	}
-	;
-	
-addressValue
-	: ADDRESS {
-		$$ = $1;
-	}
-	| IDENTIFIER {
-		if(constants.contains($1)) {
-			if(constants[$1].value_set) {
-				$$ = $1;
-			}
-			else {
-				constants[$1].loc.push_back(current_byte);
-				$$ = 0;
-			}
-		}
-		else {
-			constants.insert({$1, {}};
-			constants[$1].loc.push_back(current_byte);
-			$$ = 0;
-		}
-	}
-	;
-
-directiveStatement
-	: BYTE byteList {
-		$$ = new std::vector<uint8_t>($2);
-		delete $2;
-	}
-	| WORD wordList {
-		$$ = new std::vector<uint8_t>($2);
-		delete $2;
-	}
-	| ORG ADDRESS {
-		current_byte = $2;
-		//Empty vector
-		$$ = new std::vector<uint8_t>;
-	}
-	;
-	
-byteList
-	: byteList COMMA ADDRESS{
-		$$ = new std::vector<uint8_t>($1);
-		$$->insert($$->begin(), $3 & 0xFF);
+		
+		//std::cout << "Imp\n";
+		
+		$$ = new statement_data(*$1);
 		delete $1;
+		
+		$$->op_mode = ADDR_MODE::IMPLIED;
+		
 	}
-	| ADDRESS {
-		$$ = new std::vector<uint8_t>;
-		$$->push_back($1 & 0xFF);
+	;
+
+directive_statement
+	: data_statement
+	| ORG address_value {
+		
+		$$ = new statement_data();
+		
+		$$->operand_expressions.push_back(*$2);
+		delete $2;
+		
+		$$->stmnt_mode = STATEMENT_MODE::ST_ORG;
+		
 	}
 	;
 	
-wordList
-	: wordList COMMA ADDRESS{
-		$$ = new std::vector<uint8_t>($1);
-		$$->insert($$->begin(), $3 >> 8);
-		$$->insert($$->begin(), $3 & 0xFF);
+data_statement
+	: BYTE byte_list {
+		
+		$$ = new statement_data(*$2);
+		delete $2;
+		
+		$$->stmnt_mode = STATEMENT_MODE::ST_DATA_BYTE;
+		
+	}
+	| WORD word_list {
+		
+		$$ = new statement_data(*$2);
+		delete $2;
+		
+		$$->stmnt_mode = STATEMENT_MODE::ST_DATA_WORD;
+		
+	}
+	;
+	
+byte_list
+	: expression COMMA byte_list {
+		
+		$$ = new std::vector<expression_data>(*$3);
+		delete $3;
+		
+		expression_data temp(*$1);
 		delete $1;
-	}
-	| ADDRESS {
-		$$ = new std::vector<uint8_t>;
-		$$->push_back($1 & 0xFF);
-		$$->push_back($1 >> 8);
-	}
-	;
-
-program
-	: statementList {
-	
-		if(_error == 0) {
 		
-			std::set<std::string>::iterator symbolIterator = symbols.begin();
-			
-			$$ = new std::string();
-			
-			//Wrap in main and include iostream for value checking
-			*$$ += "#include <iostream>\n\nint main() {\n\/\/Begin: variable declaration\n";
-			
-			//Declare all variables
-			for(symbolIterator = symbols.begin(); symbolIterator != symbols.end(); symbolIterator++) {
-				*$$ += "\tdouble ";
-				*$$ += (*symbolIterator);
-				*$$ += ";\n";
-				//*$$ += "\tdouble " + (*symbolIterator) + ";\n";
-			}
-			
-			*$$ += "\/\/End: variable declaration\n\/\/Begin: program\n";
-			
-			//Write program
-			*$$ += *$1;
-			
-			*$$ += "\/\/End: program\n\/\/Begin: variable printing\n";
-			
-			//Write variable checks
-			for(symbolIterator = symbols.begin(); symbolIterator != symbols.end(); symbolIterator++) {
-				*$$ += "\tstd::cout << \"";
-				*$$ += (*symbolIterator);
-				*$$ += ": \" << ";
-				*$$ += (*symbolIterator);
-				*$$ += " << \'\\n\';\n";
-				//*$$ += "\tdouble " + (*symbolIterator) + ";\n";
-			}
-			
-			*$$ += "\/\/End: variable printing\n\/\/Main end\n";
-			
-			//Standard return
-			*$$ += "\treturn 0;\n}";
-			
-			delete $1;
-			
-			//Store in programOut extern variable to print if no errors
-			//This took forever to get
-			programOut = new std::string(*$$);
-			
-			//Tried just printing if no error was found, but error4.py and error5.py would throw errors and still print
-			//std::cout << *$$ << std::endl;
-			
-		}
-
-	}
-	;
-
-statementList
-	: statementList statement {
-		$$ = new std::string(*$1); 
-		*$$ += *$2; 
-		delete $1; delete $2;
-	}
-	| statement {
-		$$ = new std::string(*$1); 
-		delete $1; 
-	}
-	;
-	
-statement
-	: ifStatement
-	| whileStatement
-	| assignStatement
-	| BREAK NEWLINE {
-		int c;
-		$$ = new std::string();
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += "break;\n";
-	}
-	;
-	
-assignStatement
-	: IDENTIFIER ASSIGN expression NEWLINE {
-		int c;
-		$$ = new std::string();
+		$$->insert($$->begin(), temp);
 		
-		symbols.insert(*$1);
+	}
+	| expression {
 		
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += *$1 + " = " + *$3 + ";\n"; 
-		delete $1; delete $3;
-	}
-	| IDENTIFIER ASSIGN assignStatement {
-		$$ = new std::string(*$1);
-		*$$ += " = " + *$3;
-		delete $1; delete $3;
+		$$ = new std::vector<expression_data>();
+		
+		expression_data temp(*$1);
+		delete $1;
+		
+		$$->push_back(temp);
+		
 	}
 	;
 	
-ifStatement 
-	: IF ifMain {
-		int c;
-		$$ = new std::string();
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += "if(" + *$2;
-		delete $2;
+word_list
+	: expression COMMA word_list {
+		
+		$$ = new std::vector<expression_data>(*$3);
+		delete $3;
+		
+		$$->insert($$->begin(), {*$1});
+		delete $1;		
+		
+	}
+	| expression {
+		
+		$$ = new std::vector<expression_data>();
+		
+		$$->push_back({*$1});		
+		delete $1;
+		
 	}
 	;
 	
-elifStatement
-	: ELIF ifMain {
-		int c;
-		$$ = new std::string();
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += "else if(" + *$2;
-		delete $2;
-	}
-	;
-	
-ifMain
-	: expression COLON NEWLINE blockStatement {
-		$$ = new std::string(*$1);
-		*$$ += ")" + *$4;
-		delete $1; delete $4;
-	}
-	| expression COLON NEWLINE blockStatement elifStatement {
-		$$ = new std::string(*$1);
-		*$$ += ")" + *$4 + *$5;
-		delete $1; delete $4; delete $5;
-	}
-	| expression COLON NEWLINE blockStatement ELSE COLON NEWLINE blockStatement {
-		int c;
-		$$ = new std::string(*$1);
-		*$$ += ")" + *$4;
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += "else " + *$8;
-		delete $1; delete $4; delete $8;
-	}
-	;
-	
-whileStatement
-	: WHILE expression COLON NEWLINE blockStatement {
-		int c;
-		$$ = new std::string();
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += "while(" + *$2 + ")" + *$5;
-		delete $2; delete $5;
-	}
-	;
+/*
+Ex:
+LDA #[$10 + V1 * [V2 * V3 - V4 / V5] - V6 * $02]
+$10, V1, V2, V3, *, V4, V5, /, -, *, +, V5, $02, *, -
 
-blockStatement
-	: INDENT statementList DEDENT {
-		int c;
-		$$ = new std::string("{\n");
-		*$$ += *$2;
-		for(c = 0; c < @1.first_column; c++) {
-			*$$ += '\t';
-		}
-		*$$ += "}\n";
-		delete $2;
-	}
-	;
+[$10 + V1 * [V2 - V3 / V4] - V5 * $02]
+[expression]
+[expression + expression]
+[addr + expression - expression]
+[addr + expression * [expression] - expression]
+[addr + expression * [expression * expression] - expression * expression]
+[addr + addr * [expression * expression - expression / expression] - addr * addr]
+[addr + addr * [addr - addr / addr] - addr * addr]
+[a + b * [c * d - e / f] - g * h]
+
+*/
+
+/*
+
+	Expressions are handled by building upward, starting with expressions inside brackets and single values
+	Multiplicative expressions are then handled (*,/) left to right by appending the operator onto the end of the two expressions as they are
+	Additive expressions (+,-) are handled similarly
+	At the end, they should be in postfix notation already
+
+*/
 	
+/* standard expression, the lowest priority expressions with an additive operation */
 expression
-	: LPAREN expression RPAREN {
-		$$ = new std::string("("); 
-		*$$ += *$2 + std::string(")"); 
-		delete $2;
-	}
-	| expression TIMES expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" * ") + *$3;
+	: expression PLUS m_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_ADD);
 		delete $1; delete $3;
-		//*$$ = *$1 + " * " + *$3;
+		
 	}
-	| expression DIVIDEBY expression {	
-		$$ = new std::string(*$1);
-		*$$ += std::string(" / ") + *$3;
+	| expression MINUS m_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_SUB);
 		delete $1; delete $3;
-		//*$$ = *$1 + " / " + *$3;
+		
 	}
-	| expression PLUS expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" + ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " + " + *$3;
-	}
-	| expression MINUS expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" - ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " - " + *$3;
-	}
-	| expression EQ expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" == ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " == " + *$3;
-	}
-	| expression NE expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" != ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " != " + *$3;
-	}
-	| expression GT expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" > ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " > " + *$3;
-	}
-	| expression GE expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" >= ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " >= " + *$3;
-	}
-	| expression LT expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" < ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " < " + *$3;
-	}
-	| expression LE expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" <= ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " <= " + *$3;
-	}
-	| expression AND expression {
-		$$ = new std::string(*$1);
-		*$$ += " && " + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " && " + *$3;
-	}
-	| expression OR expression {
-		$$ = new std::string(*$1);
-		*$$ += std::string(" || ") + *$3;
-		delete $1; delete $3;
-		//*$$ = *$1 + " || " + *$3;
-	}
-	| NOT expression {
-		$$ = new std::string("!"); 
-		*$$ += *$2; 
-		delete $2;
-	}
-	| value
+	| m_expression
 	;
 	
-value
-	: INTEGER {$$ = new std::string(*$1); delete $1;}
-	| FLOAT {$$ = new std::string(*$1); delete $1;}
-	| IDENTIFIER {
-		//Throw an error if the variable wasn't given a value before use
-		if(symbols.count(*$1) == 0) {
-			std::cerr << "Use of uninitialized identifier: " << *$1 << " on line " << @1.first_line << ".\n";
-			_error = 1;
-			YYERROR;
-		}
-		else {
-			$$ = new std::string(*$1);
-		}
-		delete $1;
+/* [m]ultiplicative expression, expressions that use a multiplication operation or are a p-expression */
+m_expression
+	: m_expression TIMES p_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_MUL);
+		delete $1; delete $3;
+		
 	}
-	| TRUE {$$ = new std::string("true");}
-	| FALSE {$$ = new std::string("false");}
+	| m_expression DIVIDE p_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_DIV);		
+		delete $1; delete $3;
+		
+	}
+	| p_expression
+	;
+	
+/* [p]arentheses expression, expressions that are either by themselves a whole value or are inside parentheses, making it a complete expression */
+p_expression
+	: LBRACKET expression RBRACKET {
+		
+		//std::cout << "Bracket expression\n";
+		
+		$$ = new expression_data(*$2);
+		delete $2;
+		
+		//std::cout << "Exp: [" << *$$ << "]\n";
+		
+	}
+	| address_value {
+		
+		//std::cout << "Single address value\n";
+		
+		$$ = new expression_data(*$1);
+		delete $1;
+		
+		//std::cout << "Address converted to p_expression: " << *$$ << '\n';
+		
+	}
+	;
+
+/* Address values can be either an address or an identifier (label) */
+/* These are full size by default, but we will optimize addresses (not identifiers) to 1 byte when possible for instructions with zeropage modes */
+address_value
+	: ADDRESS {
+		$$ = new address_data($1);
+		//std::cout << "Address: " << *$$ << '\n';
+	}
+	| IDENTIFIER {
+		
+		$$ = new address_data(*$1);
+		delete $1;
+		
+		//std::cout << "Label: " << *$$ << '\n';
+		
+	}
 	;
 
 %%
