@@ -4,3 +4,5 @@ src/parser.hpp
 src/parser.output
 src/scan
 src/scanner.cpp
+src/.tmp_f.asm
+src/t.bin

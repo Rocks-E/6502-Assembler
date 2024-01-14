@@ -15,13 +15,13 @@ int16_t find_opcode(std::string instr, ADDR_MODE mode) {
 		info = instruction_map.at(instr);
 	}
 	catch(std::out_of_range oore) {
-		std::cerr << "ERROR: No such instruction pneumonic found: " << instr << '\n';
+		//std::cerr << "ERROR: No such instruction pneumonic found: " << instr << '\n';
 		return -1;
 	}
 	
 	// If the mode requested isn't present in the mode_flags of this instruction, the addressing mode is not applicable so -2 is returned
 	if(!(info.mode_flags & (1 << mode))) {
-		std::cerr << "ERROR: Addressing mode not applicable for this instruction " << instr << '\n';
+		//std::cerr << "ERROR: Addressing mode not applicable for this instruction " << instr << '\n';
 		return -2;
 	}
 	

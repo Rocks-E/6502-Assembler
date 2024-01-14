@@ -341,6 +341,8 @@ int32_t main(int32_t argc, char * const *argv) {
 	for(std::pair<std::string, std::string> constant : symbols_table)
 		find_and_replace(asm_string, std::get<0>(constant), std::get<1>(constant));
 	
+	fix_zeros(asm_string);
+	
 	convert_radix(asm_string, 16, 2);
 	convert_radix(asm_string, 16, 8);
 	convert_radix(asm_string, 16, 10);
@@ -354,7 +356,7 @@ int32_t main(int32_t argc, char * const *argv) {
 		throw new std::runtime_error("Unabled to open file for reading.");
 
 	if(!yylex()) {
-		remove(TEMP_FILENAME);
+		//remove(TEMP_FILENAME);
 		std::ofstream out_file(out_filename, std::ios::out | std::ios::binary | std::ios::trunc);
 		out_file.write((char *)rom_dump, ROM_SIZE);
 		out_file.close();

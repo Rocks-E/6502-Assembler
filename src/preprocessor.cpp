@@ -128,6 +128,14 @@ void find_and_replace(std::string &str, const std::string &find_word, const std:
 	
 }
 
+// Shitty hack so we don't have to deal with 0's
+void fix_zeros(std::string &str) {
+	
+	std::regex zero_regex("([\\(\\[ ,])(0+)(?:(?![1-9A-F]))");
+	str = std::regex_replace(str, zero_regex, "$1$$00");
+	
+}
+
 void convert_radix(std::string &str, uint8_t dest_radix, uint8_t src_radix) {
 	
 	// Do nothing if the bases match
@@ -144,11 +152,11 @@ void convert_radix(std::string &str, uint8_t dest_radix, uint8_t src_radix) {
 			break;
 		
 		case 010:
-			src_radix_regex = "([ ,\\[])0[0-7]*";
+			src_radix_regex = "([ ,\\[#\\(])0[0-7]+";
 			break;
 		
 		case 10:
-			src_radix_regex = "([ ,\\[])[1-9][0-9]*";
+			src_radix_regex = "([ ,\\[#\\(])(([1-9][0-9]*)|0)";
 			break;
 		
 		case 0x10:
@@ -204,8 +212,13 @@ void convert_radix(std::string &str, uint8_t dest_radix, uint8_t src_radix) {
 			
 		}
 		
+		//std::cout << "Replacing " << number_string << " with " << result_stream.str() << " at position " << number_match.position() << ", length " << number_string.length() << '\n';
+		//std::cout << "String at " << number_match.position() - 4 << " to " << number_match.position() + number_string.length() << ": " << str.substr(number_match.position() - 4, 4 + number_string.length()) << '\n'; 
+		
 		// Replace the matched number with the converted one
 		str.replace(number_match.position(), number_string.length(), result_stream.str());
+		
+		//std::cout << str;
 		
 	}
 	

@@ -263,7 +263,7 @@ op_statement
 		//std::cout << "Statement created\n";
 		
 		ADDR_MODE op_mode;
-		if($$->op_name[0] == 'B')
+		if($$->op_name[0] == 'B' && $$->op_name != "BIT")
 			op_mode = ADDR_MODE::RELATIVE;
 		else
 			op_mode = $2->contains_label() || $2->evaluate() > 0xFF ? ADDR_MODE::ABSOLUTE : ADDR_MODE::ZEROPAGE;

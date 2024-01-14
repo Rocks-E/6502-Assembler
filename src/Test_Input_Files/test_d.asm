@@ -1,0 +1,285 @@
+; Test file D
+; Ensure all opcodes can be accessed successfully
+
+; 0X
+
+BRK
+ORA (0,X)
+JAM
+SLO (0,X)
+NOP $00
+ORA 030
+ASL 0
+SLO 0
+PHP
+ORA #TEST
+
+LBL_:
+
+ASL A
+ANC #LBL_
+NOP $0100
+ORA 256
+ASL $0000000100
+SLO %1111000111110000
+
+; 1X
+
+BPL LBL_
+ORA (0),Y
+SLO (0),Y
+NOP 0,X
+ORA 0,X
+ASL 0,X
+SLO 0,X
+CLC
+ORA $100,Y
+SLO $100,Y
+NOP $100,X
+ORA $100,X
+ASL $100,X
+SLO $100,X
+
+; 2X
+
+CURSOR:					; Set the current position
+.ORG $5150				; Move to $5150
+LBL_2:					; Define a label here ($5150)
+.ORG CURSOR				; Move back to the "current" position
+JSR LBL_2				; 20
+
+AND (0,X)
+RLA (0,X)
+BIT 0
+AND 0
+ROL 0
+RLA 0
+PLP
+AND #0
+ROL A
+BIT $100
+AND $100
+ROL $100
+RLA $100
+
+; 3X
+
+BMI CURSOR
+AND (0),Y
+RLA (0),Y
+AND 0,x
+rol 0,x
+rla 0,x
+sec
+and $100,Y
+
+RLA $100,y
+AND $100,X
+ROL $100,X
+RLA $100,X
+
+; 4X
+
+RTI
+EOR (0,X)
+SRE (0,X)
+EOR 0
+LSR 0
+SRE 0
+PHA
+EOR #0
+LSR A
+ALR #0
+JMP 0
+EOR $100
+LSR $100
+SRE $100
+
+; 5X
+BVC_LBL:
+BVC BVC_LBL
+EOR (0),Y
+SRE (0),Y
+EOR 0,X
+LSR 0,X
+SRE 0,X
+CLI
+EOR $100,Y
+SRE $100,y
+EOR $100,X
+LSR $100,X
+SRE $100,X
+
+
+; 6X
+
+RTS
+ADC (0,X)
+RRA (0,X)
+ADC 0
+ROR 0
+RRA 0
+PLA
+ADC #0
+ROR A
+ARR #0
+JMP (0)
+ADC $100
+ROR $100
+RRA $100
+
+; 7X
+
+BVS BVC_LBL
+ADC (0),Y
+RRA (0),Y
+ADC 0, X
+ROR  0 ,X 
+RRA 0,X
+SEI
+ADC $100,Y
+RRA $100,y
+ADC $100,X
+ROR $100,X
+RRA $100,X
+
+; 8X
+
+NOP #0
+STA (0,X)
+SAX (0,X)
+STY 0
+STA 0
+STX 0
+SAX 0
+DEY
+TXA
+STY $100
+STA $100
+STX $100
+SAX $100
+
+; 9X
+
+L_9:
+BCC L_9
+STA (0),Y
+SHA (0),Y
+STY 0,X
+STA 0,X
+STX 0,Y
+SAX 0,Y
+TYA
+STA $100,y
+TXS
+TAS $100,y
+SHY $100,X
+STA $100,X
+SHX $100,Y
+SHA $100,y
+
+; AX
+
+LDY #0
+LDA (0,X)
+LDX #0
+LAX (0,X)
+LDY 0
+LDA 0
+LDX 0
+LAX 0
+TAY
+LDA #0
+TAX
+LXA #0
+LDY $100
+LDA $100
+LDX $100
+LAX $100
+
+; BX
+
+BCS L_9
+LDA (0),Y
+LAX (0),y
+LDY 0,X
+LDA 0,X
+LDX 0,Y
+LAX 0,Y
+CLV
+LDA $100,Y
+TSX
+LAS $100,Y
+LDY $100,X
+LDA $100,X
+LDX $100,Y
+LAX $100,Y
+
+; CX
+
+CPY #0
+CMP (0,X)
+DCP (0,X)
+CPY 0
+CMP 0
+DEC 0
+DCP 0
+INY
+CMP #0
+DEX
+SBX #0
+CPY $100
+CMP $100
+DEC $100
+DCP $100
+
+; DX
+
+L_D:
+BNE L_D
+CMP (0),Y
+DCP (0),Y
+CMP 0,X
+DEC 0,X
+DCP 0,X
+CLD
+CMP $100,Y
+DCP $100,Y
+CMP $100,X
+DEC $100,X
+DCP $100,X
+
+; EX
+
+CPX #0
+SBC (0,X)
+ISC (0,X)
+CPX 0
+SBC 0
+INC 0
+ISC 0
+INX
+SBC #0
+NOP
+USBC #0
+CPX $100
+SBC $100
+INC $100
+ISC $100
+
+; FX
+
+BEQ L_D
+SBC (0),Y
+ISC (0),Y
+SBC 0,X
+INC 0,X
+ISC 0,X
+SED
+SBC $100,Y
+ISC $100,Y
+SBC $100,X
+INC $100,X
+ISC $100,X
+
+TEST = %1111
