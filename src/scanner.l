@@ -43,7 +43,7 @@ yypstate *pstate = yypstate_new();
 
 extern FILE *yyin;
 extern uint8_t rom_dump[];
-extern std::map<std::string, std::string> symbols_table;
+//extern std::map<std::string, std::string> symbols_table;
 
 static bool _verbose = false;
 
@@ -358,11 +358,19 @@ int32_t main(int32_t argc, char * const *argv) {
 	if(!asm_file) 
 		throw new std::runtime_error("Unable to open file for reading.");
 	
-	std::string asm_string = strip_info(asm_file);
-	asm_file.close();
+	// Preprocessor stuff, pull in the input file, strip symbol info for replacing, strip 
+	std::string asm_string;
 	
-	for(std::pair<std::string, std::string> constant : symbols_table)
-		find_and_replace(asm_string, std::get<0>(constant), std::get<1>(constant));
+	{
+		
+		std::map<std::string, std::string> symbols_table;
+		asm_string = strip_info(asm_file, symbols_table);
+		asm_file.close();
+		
+		for(std::pair<std::string, std::string> constant : symbols_table)
+			find_and_replace(asm_string, std::get<0>(constant), std::get<1>(constant));
+		
+	}
 	
 	fix_zeros(asm_string);
 	

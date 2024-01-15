@@ -1,6 +1,6 @@
 #include "preprocessor.hpp"
 
-std::map<std::string, std::string> symbols_table;
+//std::map<std::string, std::string> symbols_table;
 
 void to_upper(std::string &str) {
 	
@@ -10,7 +10,7 @@ void to_upper(std::string &str) {
 	
 }
 
-std::string strip_info(std::fstream &file) {
+std::string strip_info(std::fstream &file, std::map<std::string, std::string> &symbols_table) {
 	
 	std::stringstream result_stream;
 	std::regex 	space_regex("[ \t]+"), comma_regex("[ \t]?,[ \t]?"), starting_whitespace_regex("^[ \t]+"), comment_regex(";.*"), 
