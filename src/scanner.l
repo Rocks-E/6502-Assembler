@@ -34,7 +34,7 @@
 } while(0)
 	
 #define TEMP_FILENAME ".tmp_f.asm"
-#define OPTSTRING "i:o:h"
+#define OPTSTRING "i:o:kvh"
 #define ROM_SIZE 0x10000
 
 YYSTYPE yylval;
@@ -42,10 +42,10 @@ YYLTYPE yylloc;
 yypstate *pstate = yypstate_new();
 
 extern FILE *yyin;
-
 extern uint8_t rom_dump[];
-
 extern std::map<std::string, std::string> symbols_table;
+
+static bool _verbose = false;
 
 std::string *to_upper(char *str) {
 	
@@ -294,12 +294,15 @@ WHITESPACE [ \t]+
 int32_t main(int32_t argc, char * const *argv) {
 
 	char *in_filename = nullptr, *out_filename = nullptr;
+	bool keep_temp = false;
 
 	while(1) {
 		int32_t opt;
 		static struct option long_options[] = {
 			{"in_file", 	required_argument, 	0, 'i'},
 			{"out_file",	required_argument, 	0, 'o'},
+			{"keep_temp",	no_argument,		0, 'k'},
+			{"verbose",		no_argument,		0, 'v'},
 			{"help",		no_argument,		0, 'h'},
 			{0,				0,					0,   0}
 		};
@@ -308,6 +311,7 @@ int32_t main(int32_t argc, char * const *argv) {
 			break;
 		
 		switch(opt) {
+	
 			case 'i':
 				in_filename = optarg;
 				break;
@@ -316,9 +320,28 @@ int32_t main(int32_t argc, char * const *argv) {
 				out_filename = optarg;
 				break;
 				
+			case 'k':
+				keep_temp = true;
+				break;
+				
+			case 'v':
+				_verbose = true;
+				break;
+				
 			case 'h':
-				std::cout << "I dunno help or something\n";
+				std::cout << argv[0] << "\n"
+				"Converts 6502 assembly files to 6502 machine language files.\n"
+				"Usage: " << argv[0] << " --[i]n_file <asm_file> --[o]ut_file <bin_file> --[k]eep_temp --[v]erbose --[h]elp\n"
+				"\t[i] - Specify an input 6502 ASM file to convert\n"
+				"\t[o] - Specify the name and location of the 6502 binary file to output\n"
+				"\t[k] - Prevent the temporary ASM file created by the preprocessor from being deleted\n"
+				"\t[v] - Turn on verbose messaging. WARNING: May include a *lot* of text\n"
+				"\t[h] - Display this message\n";
 				return 0;
+				
+			default:
+				std::cerr << "Uknown command line argument: " << opt << '\n';
+				return -1;
 			
 		}
 	}
@@ -327,7 +350,7 @@ int32_t main(int32_t argc, char * const *argv) {
 		
 		std::cerr << "ERROR: Must define an output file\n";
 		
-		return 1;
+		return -2;
 		
 	}
 	
@@ -356,10 +379,15 @@ int32_t main(int32_t argc, char * const *argv) {
 		throw new std::runtime_error("Unabled to open file for reading.");
 
 	if(!yylex()) {
-		//remove(TEMP_FILENAME);
+		
+		if(!keep_temp)
+			remove(TEMP_FILENAME);
+		
 		std::ofstream out_file(out_filename, std::ios::out | std::ios::binary | std::ios::trunc);
+		
 		out_file.write((char *)rom_dump, ROM_SIZE);
 		out_file.close();
+		
 	}
 	else {
 		std::cerr << "Ah fuck\n";
