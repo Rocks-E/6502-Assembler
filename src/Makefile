@@ -12,9 +12,5 @@ parse: parser.cpp scanner.cpp
 parser.cpp parser.hpp: parser.y
 	bison -v --report=all -d -o parser.cpp parser.y
 
-test: clean parse scan
-	./parse --out_file ./out_file.bin < ./test_out_file.txt
-
 clean:
-	clear
 	rm -f scan scanner.cpp parse parser.cpp parser.hpp
