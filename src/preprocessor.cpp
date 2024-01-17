@@ -60,7 +60,7 @@ std::string strip_info(std::fstream &file, std::map<std::string, std::string> &s
 			// Ensure this symbol is not a restricted word
 			if(std::find(instruction_names.begin(), instruction_names.end(), symbol_name) != instruction_names.end())
 				throw new std::domain_error("ERROR: Cannot use restricted word [" + symbol_name + "] as a symbol.");
-			if(symbol_name == std::string("A"))
+			if(symbol_name == std::string("A") || symbol_name == std::string("X") || symbol_name == std::string("Y"))
 				throw new std::domain_error("ERROR: Cannot use restricted word [" + symbol_name + "] as a symbol.");
 			
 			assignment_names.push_back(symbol_name);

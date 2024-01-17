@@ -11,13 +11,17 @@
 
 #include "parser.hpp"
 
-#define ROM_SIZE 0x10000
+#define MAX_ROM_SIZE 0x10000
 
 //Store label
 extern std::map<std::string, uint16_t> constants;
+extern bool _verbose;
+
+uint16_t latest_location = 0;
+
 static char _error = 0;
 
-uint8_t rom_dump[ROM_SIZE] = {0};
+uint8_t rom_dump[MAX_ROM_SIZE] = {0};
 
 void yyerror(YYLTYPE *loc, char const *err);
 
@@ -94,17 +98,34 @@ program
 					break;
 					
 				// Move the current_byte cursor by however many bytes this instruction/dataset takes
-				/*
 				case STATEMENT_MODE::ST_DATA_WORD:
 				case STATEMENT_MODE::ST_DATA_BYTE:
 				case STATEMENT_MODE::ST_OPERATION:
-				*/
-				default:
-					current_byte += current_line.byte_count();
+				{
 					
+					uint16_t line_byte_count = current_line.byte_count();
+					// Check if the statement will overflow the ROM
+					// Maybe we could use some form of banking to allow for bigger ROM compilation
+					// This will not prevent writing the ROM, but it will overwrite early ROM values
+					if(MAX_ROM_SIZE - current_byte < line_byte_count) {
+						std::cerr << "WARNING: Max ROM size exceeded!\n";
+						_error++;
+						latest_location = MAX_ROM_SIZE - 1;
+					}
+					
+					current_byte += line_byte_count;
+					
+					// Update the latest location if it is less than the current byte, for use in the [s]hrink ROM option
+					if(latest_location < current_byte)
+						latest_location = current_byte;
+					
+				}
+				
 			}
 			
 		}
+		
+		//std::cout << "Last location used: " << latest_location << '\n';
 		
 		//std::cout << "Labels and locations have been set.\n";
 		

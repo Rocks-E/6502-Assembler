@@ -34,8 +34,8 @@
 } while(0)
 	
 #define TEMP_FILENAME ".tmp_f.asm"
-#define OPTSTRING "i:o:kvh"
-#define ROM_SIZE 0x10000
+#define OPTSTRING "i:o:lskvh"
+#define MAX_ROM_SIZE 0x10000
 
 YYSTYPE yylval;
 YYLTYPE yylloc;
@@ -45,7 +45,9 @@ extern FILE *yyin;
 extern uint8_t rom_dump[];
 //extern std::map<std::string, std::string> symbols_table;
 
-static bool _verbose = false;
+extern uint16_t latest_location;
+
+bool _verbose = false;
 
 std::string *to_upper(char *str) {
 	
@@ -294,13 +296,16 @@ WHITESPACE [ \t]+
 int32_t main(int32_t argc, char * const *argv) {
 
 	char *in_filename = nullptr, *out_filename = nullptr;
-	bool keep_temp = false;
+	bool keep_temp = false, shrink_rom = false;
+	size_t rom_size_limit = MAX_ROM_SIZE;
 
 	while(1) {
 		int32_t opt;
 		static struct option long_options[] = {
 			{"in_file", 	required_argument, 	0, 'i'},
 			{"out_file",	required_argument, 	0, 'o'},
+			{"limit_size",	required_argument,	0, 'l'},
+			{"shrink_rom",	no_argument,		0, 's'},
 			{"keep_temp",	no_argument,		0, 'k'},
 			{"verbose",		no_argument,		0, 'v'},
 			{"help",		no_argument,		0, 'h'},
@@ -320,6 +325,35 @@ int32_t main(int32_t argc, char * const *argv) {
 				out_filename = optarg;
 				break;
 				
+			case 'l':
+				try {
+					
+					// Set the size limit to the specified size
+					rom_size_limit = std::stoul(optarg);
+					
+					// If it exceeds 64KiB, set to 64KiB
+					if(rom_size_limit > MAX_ROM_SIZE)
+						rom_size_limit = MAX_ROM_SIZE;
+					
+				}
+				// If this is not a valid decimal number, notify the user
+				catch (std::invalid_argument &ia) {
+					
+					std::cerr << "ERROR: Please enter a decimal value for the ROM size limit.\n";
+					return -2;
+					
+				}
+				// If this is outside the range of an unsigned short, set to 64KiB
+				catch (std::out_of_range &oor) {
+					rom_size_limit = MAX_ROM_SIZE;
+				}
+				
+				break;
+				
+			case 's':
+				shrink_rom = true;
+				break;
+				
 			case 'k':
 				keep_temp = true;
 				break;
@@ -331,9 +365,11 @@ int32_t main(int32_t argc, char * const *argv) {
 			case 'h':
 				std::cout << argv[0] << "\n"
 				"Converts 6502 assembly files to 6502 machine language files.\n"
-				"Usage: " << argv[0] << " --[i]n_file <asm_file> --[o]ut_file <bin_file> --[k]eep_temp --[v]erbose --[h]elp\n"
+				"Usage: " << argv[0] << " --[i]n_file <asm_file> --[o]ut_file <bin_file> (--[l]imit_size <byte_count>) (--[s]hrink_rom) (--[k]eep_temp) (--[v]erbose) (--[h]elp)\n"
 				"\t[i] - Specify an input 6502 ASM file to convert\n"
 				"\t[o] - Specify the name and location of the 6502 binary file to output\n"
+				"\t[l] - Set the maximum generated ROM size (default 64KiB)\n"
+				"\t[s] - Shrink the ROM to fit the latest necessary index determined by the ASM file\n"
 				"\t[k] - Prevent the temporary ASM file created by the preprocessor from being deleted\n"
 				"\t[v] - Turn on verbose messaging. WARNING: May include a *lot* of text\n"
 				"\t[h] - Display this message\n";
@@ -355,51 +391,83 @@ int32_t main(int32_t argc, char * const *argv) {
 	}
 	
 	std::fstream asm_file(in_filename, std::ios::in);
-	if(!asm_file) 
-		throw new std::runtime_error("Unable to open file for reading.");
+	if(!asm_file) {
+		std::cerr << "Unable to open ASM file for reading.\n";
+		return -3;
+	}
 	
-	// Preprocessor stuff, pull in the input file, strip symbol info for replacing, strip 
+	// String to store the stripped assembly file info in a helpful configuration
 	std::string asm_string;
 	
+	// Preprocessor stuff, pull in the input file, strip symbol info for replacing, remove unnecessary info
 	{
 		
+		// Build a symbol table, strip the file and close
 		std::map<std::string, std::string> symbols_table;
 		asm_string = strip_info(asm_file, symbols_table);
 		asm_file.close();
 		
+		// Replace each symbol discovered
 		for(std::pair<std::string, std::string> constant : symbols_table)
 			find_and_replace(asm_string, std::get<0>(constant), std::get<1>(constant));
 		
 	}
 	
+	// Change all "just 0" values to $00
+	// Seems kinda hacky but it saves on some headaches for the numeric conversion step
 	fix_zeros(asm_string);
 	
+	// Convert each binary, octal, and decimal value into hexadecimal
+	// This makes it easy to check for the hex prefix for any numbers and standardizes the radix
 	convert_radix(asm_string, 16, 2);
 	convert_radix(asm_string, 16, 8);
 	convert_radix(asm_string, 16, 10);
 	
+	// Write the formatted ASM to a temp file so we can set yyin to read from it
 	std::fstream temp_file(TEMP_FILENAME, std::ios::out | std::ios::trunc);
 	temp_file << asm_string;
 	temp_file.close();
 	
+	// Set yyin to the temp file, make sure it opens successfully
 	yyin = fopen(TEMP_FILENAME, "r");
-	if(!yyin)
-		throw new std::runtime_error("Unabled to open file for reading.");
-
-	if(!yylex()) {
+	if(!yyin) {
 		
 		if(!keep_temp)
 			remove(TEMP_FILENAME);
 		
+		std::cerr << "Unable to open temp file for reading.\n";
+		return -4;
+		
+	}
+
+	// Scan and parse
+	if(!yylex()) {
+		
+		// Remove the temporary file unless -k is specified
+		if(!keep_temp)
+			remove(TEMP_FILENAME);
+		
+		// If [s], shrink the ROM to its smallest possible size given the input
+		// If the size [l]imit is set lower, use this instead
+		if(shrink_rom)
+			rom_size_limit = rom_size_limit < latest_location ? rom_size_limit : latest_location;
+		
+		// Open the intended output file, write the ROM, and close
 		std::ofstream out_file(out_filename, std::ios::out | std::ios::binary | std::ios::trunc);
 		
-		out_file.write((char *)rom_dump, ROM_SIZE);
+		// Limit the ROM to the size specified
+		out_file.write((char *)rom_dump, rom_size_limit);
 		out_file.close();
 		
 	}
 	else {
+		
+		if(!keep_temp)
+			remove(TEMP_FILENAME);
+		
 		std::cerr << "Ah fuck\n";
 		return 1;
+		
 	}
 	
 	return 0;
