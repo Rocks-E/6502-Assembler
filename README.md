@@ -3,15 +3,86 @@ Command-line-based 6502 Assembler
 This is a pretty basic 6502 assembler written in C++ using Flex and Bison. Written for my own use for help testing as I build an NES emulator, and for practice writing translators.
 
 Requirements:
-  1) A device running Linux (if you're on Windows, just get WSL)
-  2) The following packages (can be installed via apt on Ubuntu):
-     1) g++
-     2) bison
-     3) flex
-     4) make
+<ol>
+	<li>
+		A device running Linux (if you're on Windows, just get WSL)
+	</li>
+	<li>
+		The following packages (can be installed via apt on Ubuntu):
+		<ol>
+			<li>
+				g++
+			</li>
+			<li>
+				bison
+			</li>
+			<li>
+				flex
+			</li>
+			<li>
+				make
+			</li>
+		</ol>
+	</li>
+</ol>
 
 To compile, download the src files and run "make".
 
 The output command-line executable should be called "jsr_asm" - this can be modified in the Makefile. For help, run "./jsr_asm -h".
+
+Some details about the assembly files supported by this assembler:
+<ul>
+	<li>
+		Supported pneumonics and addressing modes can be found here: https://www.masswerk.at/6502/6502_instruction_set.html
+	</li>
+	<li>
+		Supports four bases:
+		<ul>
+			<li>
+				Binary - Prefixed with '%' (e.g., %10010011 -> 147)
+			</li>
+			<li>
+				Octal - Prefixed with '0' (e.g., 0577 -> 383)
+			</li>
+			<li>
+				Decimal - Any number starting with 1-9, followed by standard decimal digits
+			</li>
+			<li>
+				Hexadecimal	- Prefixed with '$' (e.g., $FF -> 255)
+			</li>
+		</ul>
+	</li>
+	<li>
+		Supports simple arithmetic expressions (+, -, *, /)
+			<ul>
+				<li>
+					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used (\* and /, then + and -)
+				</li>
+			</ul>
+	</li>
+	<li>
+		Can use compound assignment statements to set multiple equal constants (e.g., _A = _B = _C = $5A)
+		<ul>
+			<li>
+				NOTE: Currently does not support expressions in constant assignment statements - maybe in the future
+			</li>
+		</ul>
+	</li>
+	<li>
+		Use directives to set the index and declare data:
+		<ul>
+			<li>
+				.ORG &lt;loc&gt; - Moves the program counter to the given location
+			</li>
+			<li>
+				.BYTE &lt;byte_list&gt; - Declares a list of sequential bytes starting at the current program counter
+			</li>
+			<li>
+				.WORD &lt;word_list&gt; - Declares a list of sequential words (2 byte values, little endian) starting at the current program counter 
+			</li>
+		</ul>
+	</li>
+</ul>
+	
 
 More updates to come, including actual error messages, more command-line arguments, and features such as multiple file input (maybe).
