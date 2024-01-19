@@ -97,7 +97,7 @@ OPERAND $[0-9A-F]+
 PUNCTUATION \(|\)|\,|\.|\=
  /* Binary operations */
 EXPRESSION_TOKEN \+|\-|\*|\/|\[|\]
- /* Newline, compatible with both CRLF, LF, and CR */
+ /* Newline, compatible with CRLF, LF, and CR */
 NEWLINE (\r?\n)|\r
 WHITESPACE [ \t]+
 

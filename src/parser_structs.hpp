@@ -75,7 +75,6 @@ struct address_data {
 	bool is_full_size() const;
 	
 	bool is_address = true, full_size = true;
-	
 	std::variant<uint16_t, std::string> data;
 	
 	/*

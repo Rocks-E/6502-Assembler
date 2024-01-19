@@ -32,7 +32,7 @@ enum ADDR_MODE : uint8_t {
 };
 
 //Ordered by ADDR_MODE
-static uint8_t addr_offsets[] = {
+const uint8_t addr_offsets[] = {
 	/*IMMEDIATE*/	0x08, 
 	/*ZEROPAGE*/	0x04, 
 	/*ZEROPAGE_X*/	0x14, 

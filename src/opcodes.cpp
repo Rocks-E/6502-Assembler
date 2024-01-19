@@ -14,7 +14,7 @@ int16_t find_opcode(std::string instr, ADDR_MODE mode) {
 		// If it is not found, return -1
 		info = instruction_map.at(instr);
 	}
-	catch(std::out_of_range oore) {
+	catch(std::out_of_range &oore) {
 		//std::cerr << "ERROR: No such instruction pneumonic found: " << instr << '\n';
 		return -1;
 	}
@@ -33,61 +33,118 @@ int16_t find_opcode(std::string instr, ADDR_MODE mode) {
 	if(info.mode_count > 1) {
 		
 		// LoaD into X and LoaD into Y both use immediate for the base and their absolute Y uses what is usually the absolute X offset
-		if(instr == "LDX" || instr == "LDY") {
+		if(instr == "LDX" || instr == "LDY")
 			switch(mode) {
+				
 				case ADDR_MODE::IMMEDIATE:
 					//Keep as base
 					break;
+					
 				case ADDR_MODE::ABSOLUTE_Y:
 					opcode += addr_offsets[ADDR_MODE::ABSOLUTE_X];
 					break;
-				default:
+					
+				//default:
+				case ADDR_MODE::ZEROPAGE:
+				case ADDR_MODE::ZEROPAGE_X:
+				case ADDR_MODE::ZEROPAGE_Y:
+				case ADDR_MODE::ABSOLUTE:
+				case ADDR_MODE::ABSOLUTE_X:
+				case ADDR_MODE::INDIRECT:
+				case ADDR_MODE::INDIRECT_X:
+				case ADDR_MODE::INDIRECT_Y:
+				case ADDR_MODE::RELATIVE:
+				case ADDR_MODE::IMPLIED:
 					opcode += addr_offsets[mode];
+					break;
+					
 			}
-		}
 		// NO oPeration is a weird one that has many options, any of which we can use regularly with the offsets EXCEPT implied and immediate
 		// Immediate we will just tie to 0x80, the first immediate NOP, and implied we can use the standard base since it is the regular NOP we will want to use
-		else if(instr == "NOP") {
+		else if(instr == "NOP")
 			switch(mode) {
+				
 				case ADDR_MODE::IMMEDIATE:
 					opcode = 0x80;
 					break;
+					
 				case ADDR_MODE::IMPLIED:
 					//Keep as base
 					break;
-				default:
+					
+				//default:
+				case ADDR_MODE::ZEROPAGE:
+				case ADDR_MODE::ZEROPAGE_X:
+				case ADDR_MODE::ZEROPAGE_Y:
+				case ADDR_MODE::ABSOLUTE:
+				case ADDR_MODE::ABSOLUTE_X:
+				case ADDR_MODE::ABSOLUTE_Y:
+				case ADDR_MODE::INDIRECT:
+				case ADDR_MODE::INDIRECT_X:
+				case ADDR_MODE::INDIRECT_Y:
+				case ADDR_MODE::RELATIVE:
 					opcode = addr_offsets[mode];
+					break;
+					
 			}
-		}
 		// Load A + load X is an illegal operation, but like LDX and LDY it uses the regular absolute X offset for its absolute Y mode
-		else if(instr == "LAX") {
+		else if(instr == "LAX")
 			switch(mode) {
+				
 				case ADDR_MODE::ABSOLUTE_Y:
 					opcode += addr_offsets[ADDR_MODE::ABSOLUTE_X];
 					break;
-				default:
+					
+				//default:
+				case ADDR_MODE::IMMEDIATE:
+				case ADDR_MODE::ZEROPAGE:
+				case ADDR_MODE::ZEROPAGE_X:
+				case ADDR_MODE::ZEROPAGE_Y:
+				case ADDR_MODE::ABSOLUTE:
+				case ADDR_MODE::ABSOLUTE_X:
+				case ADDR_MODE::INDIRECT:
+				case ADDR_MODE::INDIRECT_X:
+				case ADDR_MODE::INDIRECT_Y:
+				case ADDR_MODE::RELATIVE:
+				case ADDR_MODE::IMPLIED:
 					opcode += addr_offsets[mode];
+					break;
+					
 			}
-		}
 		// Store High-byte of addr + 1 and A and x at addr, has indirect Y as its base and uses the absolute offset for its absolute Y
 		// There are only two SHA instructions, so no default is needed
-		else if(instr == "SHA") {
+		else if(instr == "SHA")
 			switch(mode) {
+				
 				case ADDR_MODE::INDIRECT_Y:
 					//keep base
 					break;
+					
 				case ADDR_MODE::ABSOLUTE_Y:
 					opcode += addr_offsets[ADDR_MODE::ABSOLUTE];
+					break;
+					
+				//default:
+				case ADDR_MODE::IMMEDIATE:
+				case ADDR_MODE::ZEROPAGE:
+				case ADDR_MODE::ZEROPAGE_X:
+				case ADDR_MODE::ZEROPAGE_Y:
+				case ADDR_MODE::ABSOLUTE:
+				case ADDR_MODE::ABSOLUTE_X:
+				case ADDR_MODE::INDIRECT:
+				case ADDR_MODE::INDIRECT_X:
+				case ADDR_MODE::RELATIVE:
+				case ADDR_MODE::IMPLIED:
+					break;        
+					
 			}
-		}
 		// Both ComPare with X and ComPare with Y use immediate addressing at their base, but any other modes work the same as normal
 		else if((instr == "CPX" || instr == "CPY") && mode == ADDR_MODE::IMMEDIATE) {
 			// Keep base
 		}
 		// Just use the standard offsets
-		else {
+		else
 			opcode += addr_offsets[mode];
-		}
 
 	}
 	
