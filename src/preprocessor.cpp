@@ -10,11 +10,51 @@ void to_upper(std::string &str) {
 	
 }
 
+// Taken from an answer at https://stackoverflow.com/questions/6089231/getting-std-ifstream-to-handle-lf-cr-and-crlf
+std::istream &getline_multiplatform(std::istream &istr, std::string &str) {
+	
+	str.clear();
+	
+	std::istream::sentry se(istr, true);
+	std::streambuf *sb = istr.rdbuf();
+	
+	while(1) {
+		
+		int32_t c = sb->sbumpc();
+		
+		switch(c) {
+			
+			case '\n':
+				return istr;
+				
+			case '\r':
+			
+				if(sb->sgetc() == '\n')
+					sb->sbumpc();
+				
+				return istr;
+				
+			case std::streambuf::traits_type::eof():
+			
+				if(str.empty())
+					istr.setstate(std::ios::eofbit);
+				
+				return istr;
+			
+			default:
+				str += (char)c;
+			
+		}
+		
+	}
+	
+}
+
 std::string strip_info(std::fstream &file, std::map<std::string, std::string> &symbols_table) {
 	
 	std::stringstream result_stream;
 	std::regex 	space_regex("[ \t]+"), comma_regex("[ \t]?,[ \t]?"), starting_whitespace_regex("^[ \t]+"), comment_regex(";.*"), 
-				symbol_regex("[A-Z_][A-Z0-9_]*"), number_regex("[%$0]?[0-9A-F]+"), ending_whitespace_regex("[ \t]*((\r?\n)|\r)$");
+				symbol_regex("[A-Z_][A-Z0-9_]*"), number_regex("[%$0]?[0-9A-F]+"), ending_whitespace_regex("[ \t]*\n");
 	
 	while(file) {
 		
@@ -22,12 +62,16 @@ std::string strip_info(std::fstream &file, std::map<std::string, std::string> &s
 		std::string current_line;
 		
 		// Get the next line
-		std::getline(file, current_line);
+		getline_multiplatform(file, current_line);
+		current_line += '\n';
 		
 		// Remove comments
 		current_line = std::regex_replace(current_line, comment_regex, "");
 		// Remove starting whitespace
 		current_line = std::regex_replace(current_line, starting_whitespace_regex, "");
+		
+		// Convert newlines
+		//current_line = std::regex_replace(current_line, newline_regex, "\n");
 		
 		// Ignore blank lines
 		if(current_line.find_first_not_of(" \r\n\t") == std::string::npos)
@@ -37,6 +81,7 @@ std::string strip_info(std::fstream &file, std::map<std::string, std::string> &s
 		current_line = std::regex_replace(current_line, space_regex, " ");
 		// Truncate comma spacing
 		current_line = std::regex_replace(current_line, comma_regex, ",");
+		// Replace any ending whitespace and newlines with just a standard newline character
 		current_line = std::regex_replace(current_line, ending_whitespace_regex, "\n");
 		
 		// Capitalize line for simpler processing
