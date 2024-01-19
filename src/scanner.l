@@ -7,6 +7,7 @@
  * having it included messes up compilation).
  */
 %option noyywrap
+%option nounput
 
 %option yylineno
 

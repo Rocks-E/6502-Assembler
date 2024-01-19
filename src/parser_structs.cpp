@@ -19,8 +19,12 @@ void symbol_info::set_address(uint16_t addr) {
 /** struct address_data **/
 	
 address_data::address_data(uint16_t addr_val) : data(addr_val) {}
-address_data::address_data(const std::string &label_name) : data(label_name), is_address(false) {}
-address_data::address_data(const address_data &other) : is_address(other.is_address), data(other.data) {}
+address_data::address_data(const std::string &label_name) : data(label_name) {
+	this->is_address = false;
+}
+address_data::address_data(const address_data &other) : data(other.data) {
+	this->is_address = other.is_address;
+}
 
 address_data::~address_data() {}
 
@@ -55,7 +59,9 @@ std::ostream &operator<<(std::ostream &os, const address_data &ad) {
 
 pf_stack_value::pf_stack_value(uint16_t val) : data(val) {}
 pf_stack_value::pf_stack_value(const address_data &addr) : data(addr) {}
-pf_stack_value::pf_stack_value(ARITHMETIC_OPERATOR op) : data(op), is_operand(false) {}
+pf_stack_value::pf_stack_value(ARITHMETIC_OPERATOR op) : data(op) {
+	this->is_operand = false;
+}
 
 pf_stack_value::~pf_stack_value() {}
 
@@ -485,6 +491,11 @@ std::vector<uint8_t> statement_data::to_binary(uint16_t current_byte) {
 		
 			break;
 		
+		//default:
+		case STATEMENT_MODE::ST_ORG:
+		case STATEMENT_MODE::ST_LABEL:
+			break;
+		
 	}
 	
 	return result_vec;
@@ -518,6 +529,10 @@ size_t statement_data::byte_count() const {
 			if((uint8_t)((uint8_t)this->op_mode - 4) < 4)
 				num_bytes++;
 
+			break;
+			
+		//default:
+		case STATEMENT_MODE::ST_DATA_BYTE:
 			break;
 		
 	}
