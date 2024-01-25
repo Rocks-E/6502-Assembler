@@ -56,7 +56,7 @@ Some details about the assembly files supported by this assembler:
 		Supports simple arithmetic expressions (+, -, *, /)
 			<ul>
 				<li>
-					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used (\* and /, then + and -)
+					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used (* and /, then + and -)
 				</li>
 			</ul>
 	</li>
