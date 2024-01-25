@@ -64,7 +64,7 @@ Some details about the assembly files supported by this assembler:
 		Can use compound assignment statements to set multiple equal constants (e.g., _A = _B = _C = $5A)
 		<ul>
 			<li>
-				NOTE: Currently does not support expressions in constant assignment statements - maybe in the future
+				NOTE: Assignments now support expressions! Defining constants in terms of other constants requires the other constants to be defined above, otherwise $FFFF will be inserted.
 			</li>
 		</ul>
 	</li>
