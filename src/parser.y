@@ -334,7 +334,7 @@ op_statement
 
 directive_statement
 	: data_statement
-	| ORG address_value {
+	| ORG expression {
 		
 		$$ = new statement_data();
 		
