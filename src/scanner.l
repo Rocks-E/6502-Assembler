@@ -296,7 +296,7 @@ WHITESPACE [ \t]+
 
 int32_t main(int32_t argc, char * const *argv) {
 
-	char *in_filename = nullptr, *out_filename = nullptr, *temp_filename = TEMP_FILENAME;
+	char *in_filename = nullptr, *out_filename = nullptr, *temp_filename = (char *)TEMP_FILENAME;
 	bool keep_temp = false, shrink_rom = false;
 	size_t rom_size_limit = MAX_ROM_SIZE;
 
