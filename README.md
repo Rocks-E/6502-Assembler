@@ -53,10 +53,24 @@ Some details about the assembly files supported by this assembler:
 		</ul>
 	</li>
 	<li>
-		Supports simple arithmetic expressions (+, -, *, /)
+		Converts strings to ASCII byte lists
+		<ul>
+			<li> 
+				Three supported escape sequences, \0, \", and \\
+			</li>
+			<li>
+				Any other specific bytes with no associated keyboard character can be entered by closing the string and adding a byte with that value
+			</li>
+			<li>
+				Strings can be "concatenated" as if they were just byte lists by adding a comma and then another string, byte, label, constant, etc.
+			</li>
+		</ul>
+  	</li>
+	<li>
+		Supports simple arithmetic expressions (+, -, *, /, &, |, ^)
 			<ul>
 				<li>
-					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used (* and /, then + and -)
+					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used (* and /, then + and -, then &, |, and ^)
 				</li>
 			</ul>
 	</li>
