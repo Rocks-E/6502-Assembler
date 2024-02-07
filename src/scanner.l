@@ -96,8 +96,8 @@ IDENTIFIER [A-Z_][A-Z_0-9]*
 OPERAND $[0-9A-F]+
  /* Any form of punctuation marks including left and right parentheses, commas, colons, and periods */
 PUNCTUATION \(|\)|\,|\.|\=
- /* Binary operations */
-EXPRESSION_TOKEN \+|\-|\*|\/|\[|\]
+ /* Binary operations [+,-,*,/,&,|,^] as well as brackets for precedence */
+EXPRESSION_TOKEN \+|\-|\*|\/|\[|\]|\&|\||\^
  /* Newline, compatible with CRLF, LF, and CR */
 NEWLINE (\r?\n)|\r
 WHITESPACE [ \t]+
@@ -234,6 +234,18 @@ WHITESPACE [ \t]+
 		
 		case ']':
 			return_token = RBRACKET;
+			break;
+			
+		case '&':
+			return_token = AND;
+			break;
+			
+		case '|':
+			return_token = OR;
+			break;
+			
+		case '^':
+			return_token = XOR;
 			break;
 		
 	}

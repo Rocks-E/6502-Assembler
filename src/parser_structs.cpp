@@ -199,6 +199,18 @@ uint16_t expression_data::evaluate() {
 				case ARITHMETIC_OPERATOR::AR_SUB:
 					c = a - b;
 					break;
+					
+				case ARITHMETIC_OPERATOR::AR_AND:
+					c = a & b;
+					break;
+				
+				case ARITHMETIC_OPERATOR::AR_IOR:
+					c = a | b;
+					break;
+				
+				case ARITHMETIC_OPERATOR::AR_XOR:
+					c = a ^ b;
+					break;
 				
 			}
 			

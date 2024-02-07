@@ -13,6 +13,7 @@
 #include "opcodes.hpp"
 
 void to_upper(std::string &str);
+void convert_strings(std::string &str);
 void fix_zeros(std::string &str);
 void convert_radix(std::string &str, uint8_t dest_radix, uint8_t src_radix);
 std::istream &getline_multiplatform(std::istream &istr, std::string &str);

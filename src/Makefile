@@ -17,6 +17,7 @@ test: debug
 	./$(PROG_NAME) -i $(TEST_IN_DIR)/test_c.asm -o $(TEST_OUT_DIR)/test_c.bin -t $(TEST_OUT_DIR)/test_c.tmp.asm -k -s
 	./$(PROG_NAME) -i $(TEST_IN_DIR)/test_d.asm -o $(TEST_OUT_DIR)/test_d.bin -t $(TEST_OUT_DIR)/test_d.tmp.asm -k -s
 	./$(PROG_NAME) -i $(TEST_IN_DIR)/test_e.asm -o $(TEST_OUT_DIR)/test_e.bin -t $(TEST_OUT_DIR)/test_e.tmp.asm -k -s
+	./$(PROG_NAME) -i $(TEST_IN_DIR)/test_f.asm -o $(TEST_OUT_DIR)/test_f.bin -t $(TEST_OUT_DIR)/test_f.tmp.asm -k -s
 
 scan: scanner.cpp
 	$(CC) $(CFLAGS) scanner.cpp parser.cpp parser_structs.cpp opcodes.cpp preprocessor.cpp -o scan

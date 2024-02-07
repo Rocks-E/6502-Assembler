@@ -10,6 +10,69 @@ void to_upper(std::string &str) {
 	
 }
 
+// Convert quote-delimited strings to lists of bytes
+void convert_strings(std::string &str) {
+	
+	std::regex string_regex("\"(.*)\"");
+	std::smatch string_match;
+	
+	for(std::string::const_iterator search_start(str.cbegin()); std::regex_search(search_start, str.cend(), string_match, string_regex);) {
+		
+		// Get the substring that is between the quotes
+		std::string quote_string = string_match[1];
+		
+		// If the string was empty, treat it like a terminator
+		if(quote_string.length() == 0)
+			quote_string = std::string("\0");
+		
+		std::stringstream replace_stream;
+		for(size_t c = 0; c < quote_string.length(); c++) {
+			
+			if(quote_string[c] == '\\') {
+				
+				uint16_t escape_char_val;
+				
+				switch(quote_string[++c]) {
+					
+					case '0':
+						escape_char_val = 0;
+						break;
+					
+					case '\\':
+						escape_char_val = '\\';
+						break;
+					
+					case '"':
+						escape_char_val = '"';
+						break;
+						
+					default:
+						throw new std::domain_error("Invalid escape character: valid escape characters are '0', '\\', and '\"'.");
+					
+				}
+				
+				replace_stream << '$' << std::setfill('0') << std::setw(2) << std::hex << std::uppercase << escape_char_val;
+				
+			}
+			else
+				replace_stream << '$' << std::setfill('0') << std::setw(2) << std::hex << std::uppercase << (uint16_t)quote_string[c];
+			
+			if(c < quote_string.length() - 1)
+				replace_stream << ',';
+			
+		}
+		//replace_stream << '$' << std::setfill('0') << std::setw(2) << std::hex << std::uppercase << (uint16_t)quote_string[quote_string.length() - 1];
+		
+		// Replace the matched number with the converted one
+		str.replace(string_match.position(), quote_string.length() + 2, replace_stream.str());
+		
+		search_start = str.cbegin();
+		//std::cout << str;
+		
+	}
+	
+}
+
 // Shitty hack so we don't have to deal with 0's
 void fix_zeros(std::string &str) {
 	
@@ -173,6 +236,9 @@ std::string strip_info(std::fstream &file, std::map<std::string, std::string> &s
 		// Get the next line
 		getline_multiplatform(file, current_line);
 		current_line += '\n';
+		
+		// Convert string to ASCII before any other processing to ensure the intended string is captured
+		convert_strings(current_line);
 		
 		// Remove comments
 		current_line = std::regex_replace(current_line, comment_regex, "");

@@ -42,7 +42,7 @@ extern int yylex();
 	uint16_t u16;
 }
 
-%token HASH TIMES DIVIDE PLUS MINUS
+%token HASH TIMES DIVIDE PLUS MINUS AND OR XOR
 %token ACCUMULATOR COMMA_X COMMA_Y
 %token LPAREN RPAREN COMMA COLON NEWLINE LBRACKET RBRACKET
 %token BYTE WORD ORG
@@ -54,7 +54,7 @@ extern int yylex();
 %type <stmnt> statement op_statement directive_statement data_statement
 %type <exp_vec> byte_list word_list 
 %type <addr> address_value
-%type <exp_data> expression m_expression p_expression 
+%type <exp_data> expression a_expression m_expression p_expression 
 
 %start program
 
@@ -309,7 +309,7 @@ op_statement
 		delete $1;
 		
 	}
-	/* OPC # -> Immediate, opcode followed by a literal number */
+	/* OPC # -> Immediate, opcode followed by a literal expression */
 	| INSTRUCTION HASH expression {
 		
 		//std::cout << "Imm\n";
@@ -437,13 +437,35 @@ $10, V1, V2, V3, *, V4, V5, /, -, *, +, V5, $02, *, -
 	
 /* standard expression, the lowest priority expressions with an additive operation */
 expression
-	: expression PLUS m_expression {
+	: expression AND a_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_AND);
+		delete $1; delete $3;
+		
+	}
+	| expression OR a_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_IOR);
+		delete $1; delete $3;
+		
+	}
+	| expression XOR a_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_XOR);
+		delete $1; delete $3;
+		
+	}
+	| a_expression
+	;
+	
+a_expression
+	: a_expression PLUS m_expression {
 		
 		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_ADD);
 		delete $1; delete $3;
 		
 	}
-	| expression MINUS m_expression {
+	| a_expression MINUS m_expression {
 		
 		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_SUB);
 		delete $1; delete $3;
@@ -483,7 +505,7 @@ p_expression
 	}
 	| address_value {
 		
-		//std::cout << "Single address value\n";
+		//std::cout << "Single address value: " << *$1 << '\n';
 		
 		$$ = new expression_data(*$1);
 		delete $1;

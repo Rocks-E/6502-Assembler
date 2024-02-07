@@ -36,7 +36,10 @@ enum ARITHMETIC_OPERATOR : char {
 	AR_MUL = '*',
 	AR_DIV = '/',
 	AR_ADD = '+',
-	AR_SUB = '-'
+	AR_SUB = '-',
+	AR_AND = '&',
+	AR_IOR = '|',
+	AR_XOR = '^'
 };
 
 enum STATEMENT_MODE : uint8_t {
