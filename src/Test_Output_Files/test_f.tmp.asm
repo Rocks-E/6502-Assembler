@@ -9,6 +9,10 @@ LDA #[$00]
 STA [[[$5150] + $02] + $01]
 LDA #[[$01] | [$02]]
 STA [$5250]
+LDA #[[$FF] ^ [$AA]]
+STA $F1
+LDA #[[$FF] & [$AA] ^ [$01]]
+STA $F2
 LDA #[T_STRING_END - T_STRING]
 STA $F0
 LDX $F0
