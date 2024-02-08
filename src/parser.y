@@ -39,22 +39,27 @@ extern int yylex();
 	std::string *str;
 	address_data *addr;
 	expression_data *exp_data;
-	uint16_t u16;
+	uint32_t u32;
 }
 
-%token HASH TIMES DIVIDE PLUS MINUS AND OR XOR
+%token HASH TIMES DIVIDE PLUS MINUS AND OR XOR NOT
 %token ACCUMULATOR COMMA_X COMMA_Y
 %token LPAREN RPAREN COMMA COLON NEWLINE LBRACKET RBRACKET
 %token BYTE WORD ORG
 
 %token <str> IDENTIFIER INSTRUCTION LABEL
-%token <u16> ADDRESS
+%token <u32> ADDRESS
 
 %type <stmnt_vec> statement_list
 %type <stmnt> statement op_statement directive_statement data_statement
 %type <exp_vec> byte_list word_list 
 %type <addr> address_value
-%type <exp_data> expression a_expression m_expression p_expression 
+%type <exp_data> expression a_expression m_expression u_expression p_expression 
+
+%left TIMES DIVIDE
+%left PLUS MINUS
+%left AND OR XOR
+%right NOT
 
 %start program
 
@@ -488,7 +493,27 @@ m_expression
 		delete $1; delete $3;
 		
 	}
+	| u_expression
 	| p_expression
+	;
+	
+u_expression
+	: MINUS p_expression {
+		
+		$$ = new expression_data(*$2);
+		delete $2;
+		
+		$$->op_vector.push_back(ARITHMETIC_OPERATOR::AR_NEG);
+		
+	}
+	| NOT p_expression {
+		
+		$$ = new expression_data(*$2);
+		delete $2;
+		
+		$$->op_vector.push_back(ARITHMETIC_OPERATOR::AR_NOT);
+		
+	}
 	;
 	
 /* [p]arentheses expression, expressions that are either by themselves a whole value or are inside parentheses, making it a complete expression */

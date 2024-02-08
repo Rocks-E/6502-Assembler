@@ -18,13 +18,15 @@ void symbol_info::set_address(uint16_t addr) {
 
 /** struct address_data **/
 	
-address_data::address_data(uint16_t addr_val) : data(addr_val) {}
-address_data::address_data(const std::string &label_name) : data(label_name) {
-	this->is_address = false;
+address_data::address_data() : full_size(false), data((uint16_t)0) {}
+	
+address_data::address_data(uint32_t addr_val) : data((uint16_t)addr_val) {
+	if(!(addr_val & 0x10000))
+		this->full_size = false;
 }
-address_data::address_data(const address_data &other) : data(other.data) {
-	this->is_address = other.is_address;
-}
+address_data::address_data(uint16_t addr_val, bool full) : full_size(full), data(addr_val) {}
+address_data::address_data(const std::string &label_name) : is_address(false), data(label_name) {}
+address_data::address_data(const address_data &other) : is_address(other.is_address), full_size(other.full_size), data(other.data) {}
 
 address_data::~address_data() {}
 
@@ -48,6 +50,93 @@ bool address_data::is_full_size() const {
 	return this->is_address ? GET_ADDRESS(*this) > 0xFF : this->full_size;
 }
 
+address_data address_data::operator*(const address_data &other) const {
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) * GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator/(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) / GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator+(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) + GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator-(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) - GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator&(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) & GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator|(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) | GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator^(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) ^ GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator~() const{
+	
+	if(!this->is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	uint16_t data;
+	
+	if(this->full_size)
+		data = ~GET_ADDRESS(*this);
+	else
+		data = (uint8_t)(~GET_ADDRESS(*this));
+	
+	return address_data(data, this->full_size);
+	
+}
+address_data address_data::operator-() const{
+	
+	if(!this->is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	uint16_t data;
+	
+	if(this->full_size)
+		data = -GET_ADDRESS(*this);
+	else
+		data = (uint8_t)(-GET_ADDRESS(*this));
+	
+	return address_data(data, this->full_size);
+	
+}
+
 std::ostream &operator<<(std::ostream &os, const address_data &ad) {
 	
 	os << ad.to_string();
@@ -57,7 +146,7 @@ std::ostream &operator<<(std::ostream &os, const address_data &ad) {
 
 /** struct pf_stack_value **/
 
-pf_stack_value::pf_stack_value(uint16_t val) : data(val) {}
+pf_stack_value::pf_stack_value(uint32_t val) : data(val) {}
 pf_stack_value::pf_stack_value(const address_data &addr) : data(addr) {}
 pf_stack_value::pf_stack_value(ARITHMETIC_OPERATOR op) : data(op) {
 	this->is_operand = false;
@@ -73,28 +162,6 @@ std::string pf_stack_value::to_string() const {
 	std::stringstream result_stream;
 	
 	result_stream << static_cast<char>(GET_OPERATOR(*this));
-
-	/*
-	switch(std::get<ARITHMETIC_OPERATOR>(this->data)) {
-		
-		case ARITHMETIC_OPERATOR::AR_MUL:
-			result_stream << '*';
-			break;
-		
-		case ARITHMETIC_OPERATOR::AR_DIV:
-			result_stream << '/';
-			break;
-		
-		case ARITHMETIC_OPERATOR::AR_ADD:
-			result_stream << '+';
-			break;
-		
-		case ARITHMETIC_OPERATOR::AR_SUB:
-			result_stream << '-';
-			break;
-		
-	}
-	*/
 	
 	return result_stream.str();
 	
@@ -110,7 +177,7 @@ std::ostream &operator<<(std::ostream &os, const pf_stack_value &psv) {
 /** struct expression_data **/
 	
 expression_data::expression_data() {}
-expression_data::expression_data(uint16_t val) {
+expression_data::expression_data(uint32_t val) {
 	this->op_vector.push_back(val);
 }
 expression_data::expression_data(const address_data &addr) {
@@ -164,58 +231,100 @@ uint16_t expression_data::evaluate() {
 		return GET_ADDRESS(GET_OPERAND(this->op_vector[0]));
 
 	// Create a stack to store values on
-	std::stack<uint16_t> addr_stack;
+	std::stack<address_data> addr_stack;
 	
 	// Loop through the expression operation/operand vector
 	for(const pf_stack_value &stack_val : this->op_vector) {
 		
+		address_data working_vals[3];
+		
 		// If this is an operand, push it onto the stack
 		if(stack_val.is_operand)
-			addr_stack.push(GET_ADDRESS(GET_OPERAND(stack_val)));
+			addr_stack.push(GET_OPERAND(stack_val));
 		// Otherwise, perform the operation
 		else {
 			
-			// Pop two values off the stack, where the value at the head is the second value in the operation
-			uint16_t b = addr_stack.top(), a, c;
-			addr_stack.pop();
-			a = addr_stack.top();
-			addr_stack.pop();
+			ARITHMETIC_OPERATOR next_op = GET_OPERATOR(stack_val);
 			
-			// Perform the operation
-			switch(GET_OPERATOR(stack_val)) {
+			uint8_t operand_count;
+			switch(next_op) {
 				
 				case ARITHMETIC_OPERATOR::AR_MUL:
-					c = a * b;
-					break;
-				
 				case ARITHMETIC_OPERATOR::AR_DIV:
-					c = a / b;
-					break;
-				
 				case ARITHMETIC_OPERATOR::AR_ADD:
-					c = a + b;
-					break;
-				
 				case ARITHMETIC_OPERATOR::AR_SUB:
-					c = a - b;
+				case ARITHMETIC_OPERATOR::AR_AND:
+				case ARITHMETIC_OPERATOR::AR_IOR:
+				case ARITHMETIC_OPERATOR::AR_XOR:
+					operand_count = 2;
 					break;
 					
-				case ARITHMETIC_OPERATOR::AR_AND:
-					c = a & b;
+				case ARITHMETIC_OPERATOR::AR_NOT:
+				case ARITHMETIC_OPERATOR::AR_NEG:
+					operand_count = 1;
 					break;
 				
-				case ARITHMETIC_OPERATOR::AR_IOR:
-					c = a | b;
+			}
+			
+			bool full_size = false;
+			
+			// Pop the requisite number of operands off the top of the stack
+			for(size_t c = operand_count; c > 0; c--) {
+				
+				working_vals[c] = addr_stack.top();
+				addr_stack.pop();
+				
+				// Set to full size if any operands are full size
+				if(working_vals[c].full_size)
+					full_size = true;
+				
+			}
+			
+			working_vals[0].full_size = full_size;
+
+			// Perform the operation
+			switch(next_op) {
+				
+				case ARITHMETIC_OPERATOR::AR_MUL:
+					working_vals[0] = working_vals[1] * working_vals[2];
+					break;                                                                                                                         
+
+				case ARITHMETIC_OPERATOR::AR_DIV:                                                                                                  
+					working_vals[0] = working_vals[1] / working_vals[2];
+					break;                                                                                                                         
+
+				case ARITHMETIC_OPERATOR::AR_ADD:                                                                                                  
+					working_vals[0] = working_vals[1] + working_vals[2];
+					break;                                                                                                                         
+
+				case ARITHMETIC_OPERATOR::AR_SUB:                                                                                                  
+					working_vals[0] = working_vals[1] - working_vals[2];
+					break;                                                                                                                         
+
+				case ARITHMETIC_OPERATOR::AR_AND:                                                                                                  
+					working_vals[0] = working_vals[1] & working_vals[2];
+					break;                                                                                                                         
+
+				case ARITHMETIC_OPERATOR::AR_IOR:                                                                                                  
+					working_vals[0] = working_vals[1] | working_vals[2];
+					break;                                                                                                                         
+
+				case ARITHMETIC_OPERATOR::AR_XOR:                                                                                                  
+					working_vals[0] = working_vals[1] ^ working_vals[2];
+					break;
+					
+				case ARITHMETIC_OPERATOR::AR_NOT:
+					working_vals[0] = ~working_vals[1];
 					break;
 				
-				case ARITHMETIC_OPERATOR::AR_XOR:
-					c = a ^ b;
+				case ARITHMETIC_OPERATOR::AR_NEG:
+					working_vals[0] = -working_vals[1];
 					break;
 				
 			}
 			
 			// Push the value back onto the stack
-			addr_stack.push(c);
+			addr_stack.push(working_vals[0]);
 			
 		}
 		
@@ -226,7 +335,7 @@ uint16_t expression_data::evaluate() {
 	this->op_vector.push_back(addr_stack.top());
 	
 	// At the end, only one value should be on the stack as the result of all operations
-	return addr_stack.top();
+	return GET_ADDRESS(addr_stack.top());
 	
 }
 

@@ -97,7 +97,7 @@ OPERAND $[0-9A-F]+
  /* Any form of punctuation marks including left and right parentheses, commas, colons, and periods */
 PUNCTUATION \(|\)|\,|\.|\=
  /* Binary operations [+,-,*,/,&,|,^] as well as brackets for precedence */
-EXPRESSION_TOKEN \+|\-|\*|\/|\[|\]|\&|\||\^
+EXPRESSION_TOKEN \+|\-|\*|\/|\[|\]|\&|\||\^|\~
  /* Newline, compatible with CRLF, LF, and CR */
 NEWLINE (\r?\n)|\r
 WHITESPACE [ \t]+
@@ -154,7 +154,10 @@ WHITESPACE [ \t]+
 {OPERAND} {
 
 	// Get the specified value as hex
-	yylval.u16 = std::stoul(yytext + 1, nullptr, 0x10);
+	yylval.u32 = std::stoul(yytext + 1, nullptr, 0x10);
+	// If this operand is 4 characters + the prefix, mark it as full size
+	if(strlen(yytext) > 3)
+		yylval.u32 |= 0x10000;
 
 	PUSH_TOKEN(ADDRESS);
 	
@@ -246,6 +249,10 @@ WHITESPACE [ \t]+
 			
 		case '^':
 			return_token = XOR;
+			break;
+			
+		case '~':
+			return_token = NOT;
 			break;
 		
 	}

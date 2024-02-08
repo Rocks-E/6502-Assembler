@@ -97,11 +97,11 @@ void convert_radix(std::string &str, uint8_t dest_radix, uint8_t src_radix) {
 			break;
 		
 		case 010:
-			src_radix_regex = "([\\(\\[\\+\\-\\*\\/ ,#])0[0-7]+";
+			src_radix_regex = "([\\(\\[\\+\\-\\*\\/ ,#~])0[0-7]+";
 			break;
 		
 		case 10:
-			src_radix_regex = "([\\(\\[\\+\\-\\*\\/ ,#])([1-9][0-9]*)";
+			src_radix_regex = "([\\(\\[\\+\\-\\*\\/ ,#~])([1-9][0-9]*)";
 			break;
 		
 		case 0x10:

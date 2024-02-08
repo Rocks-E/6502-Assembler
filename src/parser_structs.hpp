@@ -39,7 +39,9 @@ enum ARITHMETIC_OPERATOR : char {
 	AR_SUB = '-',
 	AR_AND = '&',
 	AR_IOR = '|',
-	AR_XOR = '^'
+	AR_XOR = '^',
+	AR_NOT = '~',
+	AR_NEG = '!'
 };
 
 enum STATEMENT_MODE : uint8_t {
@@ -66,7 +68,9 @@ struct symbol_info {
 
 struct address_data {
 	
-	address_data(uint16_t addr_val);
+	address_data();
+	address_data(uint32_t addr_val);
+	address_data(uint16_t addr_val, bool full);
 	address_data(const std::string &label_name);
 	address_data(const address_data &other);
 	~address_data();
@@ -74,8 +78,17 @@ struct address_data {
 	std::string to_string() const;
 	
 	uint16_t get_data() const;
-	
 	bool is_full_size() const;
+	
+	address_data operator*(const address_data &other) const;
+	address_data operator/(const address_data &other) const;
+	address_data operator+(const address_data &other) const;
+	address_data operator-(const address_data &other) const;
+	address_data operator&(const address_data &other) const;
+	address_data operator|(const address_data &other) const;
+	address_data operator^(const address_data &other) const;
+	address_data operator~() const;
+	address_data operator-() const;
 	
 	bool is_address = true, full_size = true;
 	std::variant<uint16_t, std::string> data;
@@ -91,7 +104,7 @@ struct address_data {
 
 struct pf_stack_value {
 
-	pf_stack_value(uint16_t val);
+	pf_stack_value(uint32_t val);
 	pf_stack_value(const address_data &addr);
 	pf_stack_value(ARITHMETIC_OPERATOR op);
 	~pf_stack_value();
@@ -114,7 +127,7 @@ struct pf_stack_value {
 struct expression_data {
 	
 	expression_data();
-	expression_data(uint16_t val);
+	expression_data(uint32_t val);
 	expression_data(const address_data &addr);
 	expression_data(const expression_data &other_data);
 	
