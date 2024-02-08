@@ -67,10 +67,13 @@ Some details about the assembly files supported by this assembler:
 		</ul>
   	</li>
 	<li>
-		Supports simple arithmetic expressions (+, -, *, /, &, |, ^)
+		Supports simple arithmetic expressions (+, -, *, /, &, |, ^, ~, -)
 			<ul>
 				<li>
-					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used (* and /, then + and -, then &, |, and ^)
+					Expressions can be surrounded by square brackets ([]) for precedence, otherwise pemdas is used for binary expressions (* and /, then + and -, then &, |, and ^)
+				</li>
+				<li>
+					Unary operations (negation [-] and bitwise NOT [~]) are handled before binary operations
 				</li>
 			</ul>
 	</li>
