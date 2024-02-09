@@ -42,7 +42,7 @@ extern int yylex();
 	uint32_t u32;
 }
 
-%token HASH TIMES DIVIDE PLUS MINUS AND OR XOR NOT
+%token HASH TIMES DIVIDE PLUS MINUS AND OR XOR NOT LSHIFT RSHIFT
 %token ACCUMULATOR COMMA_X COMMA_Y
 %token LPAREN RPAREN COMMA COLON NEWLINE LBRACKET RBRACKET
 %token BYTE WORD ORG
@@ -54,7 +54,7 @@ extern int yylex();
 %type <stmnt> statement op_statement directive_statement data_statement
 %type <exp_vec> byte_list word_list 
 %type <addr> address_value
-%type <exp_data> expression a_expression m_expression u_expression p_expression 
+%type <exp_data> expression s_expression a_expression m_expression u_expression p_expression 
 
 %left TIMES DIVIDE
 %left PLUS MINUS
@@ -442,23 +442,39 @@ $10, V1, V2, V3, *, V4, V5, /, -, *, +, V5, $02, *, -
 	
 /* standard expression, the lowest priority expressions with an additive operation */
 expression
-	: expression AND a_expression {
+	: expression AND s_expression {
 		
 		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_AND);
 		delete $1; delete $3;
 		
 	}
-	| expression OR a_expression {
+	| expression OR s_expression {
 		
 		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_IOR);
 		delete $1; delete $3;
 		
 	}
-	| expression XOR a_expression {
+	| expression XOR s_expression {
 		
 		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_XOR);
 		delete $1; delete $3;
 		
+	}
+	| s_expression
+	;
+	
+s_expression
+	: s_expression LSHIFT a_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_ASL);
+		delete $1; delete $3;
+		
+	}
+	| s_expression RSHIFT a_expression {
+		
+		$$ = expression_data::binary_op(*$1, *$3, ARITHMETIC_OPERATOR::AR_ASR);
+		delete $1; delete $3;
+			
 	}
 	| a_expression
 	;

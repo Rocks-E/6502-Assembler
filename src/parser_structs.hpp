@@ -41,7 +41,9 @@ enum ARITHMETIC_OPERATOR : char {
 	AR_IOR = '|',
 	AR_XOR = '^',
 	AR_NOT = '~',
-	AR_NEG = '!'
+	AR_NEG = '!',
+	AR_ASL = '<',
+	AR_ASR = '>'
 };
 
 enum STATEMENT_MODE : uint8_t {
@@ -87,6 +89,8 @@ struct address_data {
 	address_data operator&(const address_data &other) const;
 	address_data operator|(const address_data &other) const;
 	address_data operator^(const address_data &other) const;
+	address_data operator<<(const address_data &other) const;
+	address_data operator>>(const address_data &other) const;
 	address_data operator~() const;
 	address_data operator-() const;
 	

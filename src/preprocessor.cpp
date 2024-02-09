@@ -221,7 +221,7 @@ std::string strip_info(std::fstream &file, std::map<std::string, std::string> &s
 	
 	std::stringstream result_stream;
 	std::regex 	space_regex("[ \t]+"), comma_regex("[ \t]?,[ \t]?"), starting_whitespace_regex("^[ \t]+"), comment_regex(";.*"), 
-				symbol_regex("[\\(\\[\\+\\-\\*\\/ ,#]([A-Z_][A-Z0-9_]*)[\\)\\]\\+\\-\\*\\/ ,\n]"), expression_regex("[\\[\\]\\+\\-\\*\\/\\$A-Z0-9_ ]+\n"), ending_whitespace_regex("[ \t]*\n"), prefix_regex("\\$"),
+				symbol_regex("[\\(\\[\\+\\-\\*\\/\\~ ,#\\<\\>]([A-Z_][A-Z0-9_]*)[\\)\\]\\+\\-\\*\\/ ,\\<\\>\n]"), expression_regex("[\\[\\]\\+\\-\\*\\/\\$\\~\\<\\>A-Z0-9_ ]+\n"), ending_whitespace_regex("[ \t]*\n"), prefix_regex("\\$"),
 				assign_regex(" ?([A-Z_][A-Z0-9_]*) ?=");
 	
 	// Thinking of adding the "original" line numbers to the beginning of each line of the temp file

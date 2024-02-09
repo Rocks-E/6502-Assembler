@@ -106,6 +106,22 @@ address_data address_data::operator^(const address_data &other) const{
 	return address_data(GET_ADDRESS(*this) ^ GET_ADDRESS(other), this->full_size || other.full_size);
 	
 }
+address_data address_data::operator<<(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) << GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
+address_data address_data::operator>>(const address_data &other) const{
+	
+	if(!this->is_address || !other.is_address)
+		throw new std::domain_error("ERROR: Cannot perform arithmetic on labels.");
+	
+	return address_data(GET_ADDRESS(*this) >> GET_ADDRESS(other), this->full_size || other.full_size);
+	
+}
 address_data address_data::operator~() const{
 	
 	if(!this->is_address)
@@ -256,6 +272,8 @@ uint16_t expression_data::evaluate() {
 				case ARITHMETIC_OPERATOR::AR_AND:
 				case ARITHMETIC_OPERATOR::AR_IOR:
 				case ARITHMETIC_OPERATOR::AR_XOR:
+				case ARITHMETIC_OPERATOR::AR_ASL:
+				case ARITHMETIC_OPERATOR::AR_ASR:
 					operand_count = 2;
 					break;
 					
@@ -311,6 +329,14 @@ uint16_t expression_data::evaluate() {
 
 				case ARITHMETIC_OPERATOR::AR_XOR:                                                                                                  
 					working_vals[0] = working_vals[1] ^ working_vals[2];
+					break;
+					
+				case ARITHMETIC_OPERATOR::AR_ASL:
+					working_vals[0] = working_vals[1] << working_vals[2];
+					break;
+					
+				case ARITHMETIC_OPERATOR::AR_ASR:
+					working_vals[0] = working_vals[1] >> working_vals[2];
 					break;
 					
 				case ARITHMETIC_OPERATOR::AR_NOT:
