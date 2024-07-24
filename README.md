@@ -33,7 +33,7 @@ The output command-line executable should be called "jsr_asm" - this can be modi
 Some details about the assembly files supported by this assembler:
 <ul>
 	<li>
-		Supported pneumonics and addressing modes can be found here: https://www.masswerk.at/6502/6502_instruction_set.html
+		Supported mnemonics and addressing modes can be found here: https://www.masswerk.at/6502/6502_instruction_set.html
 	</li>
 	<li>
 		Supports four bases:
