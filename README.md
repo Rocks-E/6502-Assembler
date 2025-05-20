@@ -28,7 +28,7 @@ Requirements:
 
 To compile, download the src files and run "make".
 
-The output command-line executable should be called "jsr_asm" - this can be modified in the Makefile. For help, run "./jsr_asm -h".
+The output command-line executable should be called "rsr_asm" - this can be modified in the Makefile. For help, run "./rsr_asm -h".
 
 Some details about the assembly files supported by this assembler:
 <ul>

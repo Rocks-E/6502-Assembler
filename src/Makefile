@@ -1,6 +1,6 @@
 TEST_IN_DIR = Test_Input_Files
 TEST_OUT_DIR = Test_Output_Files
-PROG_NAME = jsr_asm
+PROG_NAME = rsr_asm
 CC = g++
 CFLAGS = -std=c++23
 
