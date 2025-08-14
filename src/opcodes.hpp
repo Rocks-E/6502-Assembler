@@ -47,7 +47,7 @@ const uint8_t addr_offsets[] = {
 	/*IMPLIED*/		0x08
 };
 
-// {{Op pneumonic}, {modes, base, flags}}
+// {{Op mnemonic}, {modes, base, flags}}
 // I hate this USBC command. I know it's illegal, I don't have to implement it, but it may be needed eventually because some developer had a use for it, somehow. Thus, the below map has some added whitespace to account for it
 static std::map<std::string, instr_info> instruction_map = {
 	{{"ADC"},{8,0x61,0x377}},{{"ALR"},{1,0x4B,0x001}},{{"ANC"},{1,0x0B,0x001}},{{"AND"},{8,0x21,0x377}}, {{"ANE"},{1,0x8B,0x001}},{{"ARR"},{1,0x6B,0x001}},{{"ASL"},{5,0x02,0x836}},{{"BCC"},{1,0x90,0x400}},
