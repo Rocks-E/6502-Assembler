@@ -10,12 +10,12 @@ int16_t find_opcode(std::string instr, ADDR_MODE mode) {
 	instr_info info;
 	
 	try {
-		// Check the map by the instruction pneumonic to get the instruction info
+		// Check the map by the instruction mnemonic to get the instruction info
 		// If it is not found, return -1
 		info = instruction_map.at(instr);
 	}
 	catch(std::out_of_range &oore) {
-		//std::cerr << "ERROR: No such instruction pneumonic found: " << instr << '\n';
+		//std::cerr << "ERROR: No such instruction mnemonic found: " << instr << '\n';
 		return -1;
 	}
 	
