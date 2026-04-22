@@ -88,7 +88,7 @@ uint8_t reserved_type(std::string str) {
 
 %}
 
- /* Instruction pneumonics used for 6502 instruction set, all except one illegal and useless instruction (USBC) are 3 letters */
+ /* Instruction mnemonics used for 6502 instruction set, all except one illegal and useless instruction (USBC) are 3 letters */
 DIRECTIVE (BYTE)|(WORD)|(ORG)
  /* Identifiers can use letters, numbers, and underscores but must start with a letter or underscore */
 IDENTIFIER [A-Z_][A-Z_0-9]*
